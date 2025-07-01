@@ -16,6 +16,32 @@ async function fetchTasks(filters = {}) {
   return await res.json();
 }
 
+let currentUser = null;
+
+async function checkAuth() {
+  const res = await fetch('/api/me');
+  const data = await res.json();
+  currentUser = data.user;
+  const loginForm = document.getElementById('login-form');
+  const userInfo = document.getElementById('user-info');
+  const taskForm = document.getElementById('task-form');
+  const controls = document.getElementById('controls');
+  if (currentUser) {
+    loginForm.style.display = 'none';
+    userInfo.style.display = 'block';
+    document.getElementById('current-user').textContent = currentUser.username;
+    taskForm.style.display = 'block';
+    controls.style.display = 'block';
+    loadTasks();
+  } else {
+    loginForm.style.display = 'block';
+    userInfo.style.display = 'none';
+    taskForm.style.display = 'none';
+    controls.style.display = 'none';
+    document.getElementById('task-list').innerHTML = '';
+  }
+}
+
 function renderTasks(tasks) {
   const list = document.getElementById('task-list');
   list.innerHTML = '';
@@ -98,4 +124,37 @@ document.getElementById('status-filter').onchange = loadTasks;
 document.getElementById('priority-filter').onchange = loadTasks;
 document.getElementById('sort-select').onchange = loadTasks;
 
-loadTasks();
+document.getElementById('login-button').onclick = async () => {
+  const username = document.getElementById('username-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  if (username && password) {
+    await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    document.getElementById('password-input').value = '';
+    checkAuth();
+  }
+};
+
+document.getElementById('register-button').onclick = async () => {
+  const username = document.getElementById('username-input').value.trim();
+  const password = document.getElementById('password-input').value;
+  if (username && password) {
+    await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    document.getElementById('password-input').value = '';
+    checkAuth();
+  }
+};
+
+document.getElementById('logout-button').onclick = async () => {
+  await fetch('/api/logout', { method: 'POST' });
+  checkAuth();
+};
+
+window.onload = checkAuth;
