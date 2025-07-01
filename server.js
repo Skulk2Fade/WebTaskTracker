@@ -6,9 +6,13 @@ const bcrypt = require('bcryptjs');
 const app = express();
 
 app.use(express.json());
+const sessionSecret = process.env.SESSION_SECRET || 'tasksecret';
+if (!process.env.SESSION_SECRET) {
+  console.warn('Warning: SESSION_SECRET environment variable not set. Using default insecure secret.');
+}
 app.use(
   session({
-    secret: 'tasksecret',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false
   })
