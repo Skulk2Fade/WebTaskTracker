@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const fsPromises = fs.promises;
 const app = express();
 
 app.use(express.json());
@@ -11,9 +12,9 @@ const DATA_FILE = path.join(__dirname, 'tasks.json');
 let tasks = [];
 let idCounter = 1;
 
-function loadTasks() {
+async function loadTasks() {
   try {
-    const data = fs.readFileSync(DATA_FILE, 'utf-8');
+    const data = await fsPromises.readFile(DATA_FILE, 'utf-8');
     tasks = JSON.parse(data);
     const maxId = tasks.reduce((m, t) => Math.max(m, t.id), 0);
     idCounter = maxId + 1;
@@ -23,11 +24,9 @@ function loadTasks() {
   }
 }
 
-function saveTasks() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(tasks, null, 2));
+async function saveTasks() {
+  await fsPromises.writeFile(DATA_FILE, JSON.stringify(tasks, null, 2));
 }
-
-loadTasks();
 
 app.get('/api/tasks', (req, res) => {
   let results = [...tasks];
@@ -55,7 +54,7 @@ app.get('/api/tasks', (req, res) => {
   res.json(results);
 });
 
-app.post('/api/tasks', (req, res) => {
+app.post('/api/tasks', async (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;
   let priority = req.body.priority || 'medium';
@@ -65,11 +64,16 @@ app.post('/api/tasks', (req, res) => {
   }
   const task = { id: idCounter++, text, dueDate, priority, done: false };
   tasks.push(task);
-  saveTasks();
-  res.status(201).json(task);
+  try {
+    await saveTasks();
+    res.status(201).json(task);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save task' });
+  }
 });
 
-app.put('/api/tasks/:id', (req, res) => {
+app.put('/api/tasks/:id', async (req, res) => {
   const task = tasks.find(t => t.id === parseInt(req.params.id));
   if (!task) {
     return res.status(404).json({ error: 'Task not found' });
@@ -93,19 +97,32 @@ app.put('/api/tasks/:id', (req, res) => {
   if (done !== undefined) {
     task.done = done === true;
   }
-  saveTasks();
-  res.json(task);
+  try {
+    await saveTasks();
+    res.json(task);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save task' });
+  }
 });
 
-app.delete('/api/tasks/:id', (req, res) => {
+app.delete('/api/tasks/:id', async (req, res) => {
   const idx = tasks.findIndex(t => t.id === parseInt(req.params.id));
   if (idx === -1) {
     return res.status(404).json({ error: 'Task not found' });
   }
   const [deleted] = tasks.splice(idx, 1);
-  saveTasks();
-  res.json(deleted);
+  try {
+    await saveTasks();
+    res.json(deleted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save task' });
+  }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+(async () => {
+  await loadTasks();
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+})();
