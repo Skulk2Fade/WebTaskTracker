@@ -22,6 +22,7 @@ async function checkAuth() {
   const res = await fetch('/api/me');
   const data = await res.json();
   currentUser = data.user;
+  document.getElementById('login-error').textContent = '';
   const loginForm = document.getElementById('login-form');
   const userInfo = document.getElementById('user-info');
   const taskForm = document.getElementById('task-form');
@@ -127,20 +128,28 @@ document.getElementById('sort-select').onchange = loadTasks;
 document.getElementById('login-button').onclick = async () => {
   const username = document.getElementById('username-input').value.trim();
   const password = document.getElementById('password-input').value;
+  const errorEl = document.getElementById('login-error');
+  errorEl.textContent = '';
   if (username && password) {
-    await fetch('/api/login', {
+    const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     document.getElementById('password-input').value = '';
-    checkAuth();
+    if (res.ok) {
+      checkAuth();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      errorEl.textContent = data.error || 'Login failed';
+    }
   }
 };
 
 document.getElementById('register-button').onclick = async () => {
   const username = document.getElementById('username-input').value.trim();
   const password = document.getElementById('password-input').value;
+  document.getElementById('login-error').textContent = '';
   if (username && password) {
     await fetch('/api/register', {
       method: 'POST',

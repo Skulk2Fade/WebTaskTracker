@@ -28,3 +28,8 @@ body {
 .high { color: red; }
 .medium { color: orange; }
 .low { color: green; }
+
+.error {
+  color: red;
+  margin-top: 5px;
+}

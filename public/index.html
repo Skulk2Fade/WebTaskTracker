@@ -8,14 +8,15 @@
 </head>
 <body>
   <h1>Task Tracker</h1>
-  <div id="auth">
-    <div id="login-form">
-      <input type="text" id="username-input" placeholder="Username">
-      <input type="password" id="password-input" placeholder="Password">
-      <button id="login-button">Login</button>
-      <button id="register-button">Register</button>
-    </div>
-    <div id="user-info" style="display:none;">
+    <div id="auth">
+      <div id="login-form">
+        <input type="text" id="username-input" placeholder="Username">
+        <input type="password" id="password-input" placeholder="Password">
+        <button id="login-button">Login</button>
+        <button id="register-button">Register</button>
+        <div id="login-error" class="error"></div>
+      </div>
+      <div id="user-info" style="display:none;">
       Logged in as <span id="current-user"></span>
       <button id="logout-button">Logout</button>
     </div>
