@@ -52,7 +52,25 @@ app.put('/api/tasks/:id', (req, res) => {
   if (!task) {
     return res.status(404).json({ error: 'Task not found' });
   }
-  task.done = req.body.done === true;
+  const { text, dueDate, priority, done } = req.body;
+  if (text !== undefined) {
+    if (!text.trim()) {
+      return res.status(400).json({ error: 'Task text cannot be empty' });
+    }
+    task.text = text;
+  }
+  if (dueDate !== undefined) {
+    task.dueDate = dueDate;
+  }
+  if (priority !== undefined) {
+    if (!['high', 'medium', 'low'].includes(priority)) {
+      return res.status(400).json({ error: 'Invalid priority value' });
+    }
+    task.priority = priority;
+  }
+  if (done !== undefined) {
+    task.done = done === true;
+  }
   saveTasks();
   res.json(task);
 });

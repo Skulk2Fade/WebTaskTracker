@@ -26,6 +26,21 @@ function renderTasks(tasks) {
       loadTasks();
     };
 
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.onclick = async () => {
+      const newText = prompt('Task text:', task.text);
+      if (newText === null) return;
+      const newDue = prompt('Due date (YYYY-MM-DD):', task.dueDate || '');
+      const newPriority = prompt('Priority (high, medium, low):', task.priority);
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ text: newText, dueDate: newDue, priority: newPriority })
+      });
+      loadTasks();
+    };
+
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = 'Delete';
     deleteBtn.onclick = async () => {
@@ -33,7 +48,7 @@ function renderTasks(tasks) {
       loadTasks();
     };
 
-    li.append(' ', toggleBtn, ' ', deleteBtn);
+    li.append(' ', toggleBtn, ' ', editBtn, ' ', deleteBtn);
     list.appendChild(li);
   });
 }
