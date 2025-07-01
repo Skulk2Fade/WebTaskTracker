@@ -4,6 +4,7 @@ const db = require('./db');
 const session = require('express-session');
 const SQLiteStore = require('./sqliteStore');
 const bcrypt = require('bcryptjs');
+const csurf = require('csurf');
 const app = express();
 
 app.use(express.json());
@@ -20,7 +21,12 @@ app.use(
     store: new SQLiteStore()
   })
 );
+app.use(csurf());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
 
 function requireAuth(req, res, next) {
   if (!req.session.userId) {
@@ -157,6 +163,13 @@ app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to save task' });
   }
+});
+
+app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+  next(err);
 });
 
 (async () => {

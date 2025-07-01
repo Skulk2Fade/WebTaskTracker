@@ -17,6 +17,13 @@ async function fetchTasks(filters = {}) {
 }
 
 let currentUser = null;
+let csrfToken = '';
+
+async function updateCsrfToken() {
+  const res = await fetch('/api/csrf-token');
+  const data = await res.json();
+  csrfToken = data.csrfToken;
+}
 
 async function checkAuth() {
   const res = await fetch('/api/me');
@@ -60,7 +67,10 @@ function renderTasks(tasks) {
     toggleBtn.onclick = async () => {
       await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken
+        },
         body: JSON.stringify({ done: !task.done })
       });
       loadTasks();
@@ -75,7 +85,10 @@ function renderTasks(tasks) {
       const newPriority = prompt('Priority (high, medium, low):', task.priority);
       await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken
+        },
         body: JSON.stringify({ text: newText, dueDate: newDue, priority: newPriority })
       });
       loadTasks();
@@ -84,7 +97,10 @@ function renderTasks(tasks) {
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = 'Delete';
     deleteBtn.onclick = async () => {
-      await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'DELETE',
+        headers: { 'CSRF-Token': csrfToken }
+      });
       loadTasks();
     };
 
@@ -111,7 +127,10 @@ document.getElementById('add-button').onclick = async () => {
   if (text) {
     await fetch('/api/tasks', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'CSRF-Token': csrfToken
+      },
       body: JSON.stringify({ text, dueDate, priority })
     });
     input.value = '';
@@ -133,11 +152,15 @@ document.getElementById('login-button').onclick = async () => {
   if (username && password) {
     const res = await fetch('/api/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'CSRF-Token': csrfToken
+      },
       body: JSON.stringify({ username, password })
     });
     document.getElementById('password-input').value = '';
     if (res.ok) {
+      await updateCsrfToken();
       checkAuth();
     } else {
       const data = await res.json().catch(() => ({}));
@@ -153,17 +176,28 @@ document.getElementById('register-button').onclick = async () => {
   if (username && password) {
     await fetch('/api/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'CSRF-Token': csrfToken
+      },
       body: JSON.stringify({ username, password })
     });
     document.getElementById('password-input').value = '';
+    await updateCsrfToken();
     checkAuth();
   }
 };
 
 document.getElementById('logout-button').onclick = async () => {
-  await fetch('/api/logout', { method: 'POST' });
+  await fetch('/api/logout', {
+    method: 'POST',
+    headers: { 'CSRF-Token': csrfToken }
+  });
+  await updateCsrfToken();
   checkAuth();
 };
 
-window.onload = checkAuth;
+window.onload = async () => {
+  await updateCsrfToken();
+  checkAuth();
+};
