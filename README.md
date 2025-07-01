@@ -18,7 +18,7 @@ Session data is also stored in this database so it survives server restarts.
 
 ## Usage
 
-Set the `SESSION_SECRET` environment variable to a random string and start the application with:
+You **must** set the `SESSION_SECRET` environment variable to a random string or the server will refuse to start. Start the application with:
 
 ```bash
 export SESSION_SECRET=your_secret_here
