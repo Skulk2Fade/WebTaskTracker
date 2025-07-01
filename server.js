@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const db = require('./db');
 const session = require('express-session');
+const SQLiteStore = require('./sqliteStore');
 const bcrypt = require('bcryptjs');
 const app = express();
 
@@ -14,7 +15,8 @@ app.use(
   session({
     secret: sessionSecret,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    store: new SQLiteStore()
   })
 );
 app.use(express.static(path.join(__dirname, 'public')));

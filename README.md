@@ -14,6 +14,7 @@ npm install
 
 This will install `sqlite3` which is used for persistence. The database file
 `tasks.db` will be created automatically on first run.
+Session data is also stored in this database so it survives server restarts.
 
 ## Usage
 
