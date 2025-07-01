@@ -1,5 +1,18 @@
-async function fetchTasks() {
-  const res = await fetch('/api/tasks');
+async function fetchTasks(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.priority && filters.priority !== 'all') {
+    params.append('priority', filters.priority);
+  }
+  if (filters.status === 'completed') {
+    params.append('done', 'true');
+  } else if (filters.status === 'active') {
+    params.append('done', 'false');
+  }
+  if (filters.sort) {
+    params.append('sort', filters.sort);
+  }
+  const query = params.toString();
+  const res = await fetch('/api/tasks' + (query ? `?${query}` : ''));
   return await res.json();
 }
 
@@ -54,7 +67,10 @@ function renderTasks(tasks) {
 }
 
 async function loadTasks() {
-  const tasks = await fetchTasks();
+  const status = document.getElementById('status-filter').value;
+  const priorityFilter = document.getElementById('priority-filter').value;
+  const sort = document.getElementById('sort-select').value;
+  const tasks = await fetchTasks({ status, priority: priorityFilter, sort });
   renderTasks(tasks);
 }
 
@@ -77,5 +93,9 @@ document.getElementById('add-button').onclick = async () => {
     loadTasks();
   }
 };
+
+document.getElementById('status-filter').onchange = loadTasks;
+document.getElementById('priority-filter').onchange = loadTasks;
+document.getElementById('sort-select').onchange = loadTasks;
 
 loadTasks();

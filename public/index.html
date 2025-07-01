@@ -18,6 +18,24 @@
     </select>
     <button id="add-button">Add</button>
   </div>
+  <div id="controls">
+    <select id="status-filter">
+      <option value="all">All</option>
+      <option value="active">Active</option>
+      <option value="completed">Completed</option>
+    </select>
+    <select id="priority-filter">
+      <option value="all">All Priorities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <select id="sort-select">
+      <option value="">No Sorting</option>
+      <option value="dueDate">Sort by Due Date</option>
+      <option value="priority">Sort by Priority</option>
+    </select>
+  </div>
   <ul id="task-list"></ul>
 
   <script src="script.js"></script>
