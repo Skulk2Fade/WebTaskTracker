@@ -16,10 +16,12 @@ app.get('/api/tasks', (req, res) => {
 app.post('/api/tasks', (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;
+  let priority = req.body.priority || 'medium';
+  priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
   if (!text) {
     return res.status(400).json({ error: 'Task text is required' });
   }
-  const task = { id: idCounter++, text, dueDate, done: false };
+  const task = { id: idCounter++, text, dueDate, priority, done: false };
   tasks.push(task);
   res.status(201).json(task);
 });
