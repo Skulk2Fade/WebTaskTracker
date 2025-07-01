@@ -9,7 +9,7 @@ function renderTasks(tasks) {
   tasks.forEach(task => {
     const li = document.createElement('li');
     li.dataset.id = task.id;
-    li.textContent = task.text;
+    li.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'})`;
     if (task.done) {
       li.classList.add('done');
     }
@@ -44,14 +44,17 @@ async function loadTasks() {
 
 document.getElementById('add-button').onclick = async () => {
   const input = document.getElementById('task-input');
+  const dueInput = document.getElementById('due-date-input');
   const text = input.value.trim();
+  const dueDate = dueInput.value;
   if (text) {
     await fetch('/api/tasks', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, dueDate })
     });
     input.value = '';
+    dueInput.value = '';
     loadTasks();
   }
 };
