@@ -15,10 +15,11 @@ app.get('/api/tasks', (req, res) => {
 
 app.post('/api/tasks', (req, res) => {
   const text = req.body.text;
+  const dueDate = req.body.dueDate;
   if (!text) {
     return res.status(400).json({ error: 'Task text is required' });
   }
-  const task = { id: idCounter++, text, done: false };
+  const task = { id: idCounter++, text, dueDate, done: false };
   tasks.push(task);
   res.status(201).json(task);
 });
