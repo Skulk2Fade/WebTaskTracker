@@ -17,13 +17,14 @@ This will install `sqlite3` which is used for persistence. The database file
 
 ## Usage
 
-Start the application with:
+Set the `SESSION_SECRET` environment variable to a random string and start the application with:
 
 ```bash
+export SESSION_SECRET=your_secret_here
 npm start
 ```
 
-The server will run on port 3000 by default.
+The server will run on port 3000 by default if no `PORT` variable is set.
 
 ## Authentication
 
