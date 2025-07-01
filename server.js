@@ -1,57 +1,25 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
-const fsPromises = fs.promises;
+const db = require('./db');
 const app = express();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Task persistence
-const DATA_FILE = path.join(__dirname, 'tasks.json');
-let tasks = [];
-let idCounter = 1;
 
-async function loadTasks() {
-  try {
-    const data = await fsPromises.readFile(DATA_FILE, 'utf-8');
-    tasks = JSON.parse(data);
-    const maxId = tasks.reduce((m, t) => Math.max(m, t.id), 0);
-    idCounter = maxId + 1;
-  } catch (err) {
-    tasks = [];
-    idCounter = 1;
-  }
-}
-
-async function saveTasks() {
-  await fsPromises.writeFile(DATA_FILE, JSON.stringify(tasks, null, 2));
-}
-
-app.get('/api/tasks', (req, res) => {
-  let results = [...tasks];
+app.get('/api/tasks', async (req, res) => {
   const { priority, done, sort } = req.query;
-
-  if (priority && ['high', 'medium', 'low'].includes(priority)) {
-    results = results.filter(t => t.priority === priority);
-  }
-
-  if (done === 'true' || done === 'false') {
-    results = results.filter(t => t.done === (done === 'true'));
-  }
-
-  if (sort === 'dueDate') {
-    results.sort((a, b) => {
-      const aDate = a.dueDate ? new Date(a.dueDate) : new Date(8640000000000000);
-      const bDate = b.dueDate ? new Date(b.dueDate) : new Date(8640000000000000);
-      return aDate - bDate;
+  try {
+    const tasks = await db.listTasks({
+      priority,
+      done: done === 'true' ? true : done === 'false' ? false : undefined,
+      sort
     });
-  } else if (sort === 'priority') {
-    const order = { high: 1, medium: 2, low: 3 };
-    results.sort((a, b) => order[a.priority] - order[b.priority]);
+    res.json(tasks);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load tasks' });
   }
-
-  res.json(results);
 });
 
 app.post('/api/tasks', async (req, res) => {
@@ -62,10 +30,8 @@ app.post('/api/tasks', async (req, res) => {
   if (!text) {
     return res.status(400).json({ error: 'Task text is required' });
   }
-  const task = { id: idCounter++, text, dueDate, priority, done: false };
-  tasks.push(task);
   try {
-    await saveTasks();
+    const task = await db.createTask({ text, dueDate, priority, done: false });
     res.status(201).json(task);
   } catch (err) {
     console.error(err);
@@ -74,32 +40,20 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 app.put('/api/tasks/:id', async (req, res) => {
-  const task = tasks.find(t => t.id === parseInt(req.params.id));
-  if (!task) {
-    return res.status(404).json({ error: 'Task not found' });
-  }
+  const id = parseInt(req.params.id);
   const { text, dueDate, priority, done } = req.body;
-  if (text !== undefined) {
-    if (!text.trim()) {
-      return res.status(400).json({ error: 'Task text cannot be empty' });
-    }
-    task.text = text;
+  if (text !== undefined && !text.trim()) {
+    return res.status(400).json({ error: 'Task text cannot be empty' });
   }
-  if (dueDate !== undefined) {
-    task.dueDate = dueDate;
-  }
-  if (priority !== undefined) {
-    if (!['high', 'medium', 'low'].includes(priority)) {
-      return res.status(400).json({ error: 'Invalid priority value' });
-    }
-    task.priority = priority;
-  }
-  if (done !== undefined) {
-    task.done = done === true;
+  if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
+    return res.status(400).json({ error: 'Invalid priority value' });
   }
   try {
-    await saveTasks();
-    res.json(task);
+    const updated = await db.updateTask(id, { text, dueDate, priority, done });
+    if (!updated) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save task' });
@@ -107,13 +61,12 @@ app.put('/api/tasks/:id', async (req, res) => {
 });
 
 app.delete('/api/tasks/:id', async (req, res) => {
-  const idx = tasks.findIndex(t => t.id === parseInt(req.params.id));
-  if (idx === -1) {
-    return res.status(404).json({ error: 'Task not found' });
-  }
-  const [deleted] = tasks.splice(idx, 1);
+  const id = parseInt(req.params.id);
   try {
-    await saveTasks();
+    const deleted = await db.deleteTask(id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
     res.json(deleted);
   } catch (err) {
     console.error(err);
@@ -122,7 +75,6 @@ app.delete('/api/tasks/:id', async (req, res) => {
 });
 
 (async () => {
-  await loadTasks();
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 })();
