@@ -30,7 +30,29 @@ function saveTasks() {
 loadTasks();
 
 app.get('/api/tasks', (req, res) => {
-  res.json(tasks);
+  let results = [...tasks];
+  const { priority, done, sort } = req.query;
+
+  if (priority && ['high', 'medium', 'low'].includes(priority)) {
+    results = results.filter(t => t.priority === priority);
+  }
+
+  if (done === 'true' || done === 'false') {
+    results = results.filter(t => t.done === (done === 'true'));
+  }
+
+  if (sort === 'dueDate') {
+    results.sort((a, b) => {
+      const aDate = a.dueDate ? new Date(a.dueDate) : new Date(8640000000000000);
+      const bDate = b.dueDate ? new Date(b.dueDate) : new Date(8640000000000000);
+      return aDate - bDate;
+    });
+  } else if (sort === 'priority') {
+    const order = { high: 1, medium: 2, low: 3 };
+    results.sort((a, b) => order[a.priority] - order[b.priority]);
+  }
+
+  res.json(results);
 });
 
 app.post('/api/tasks', (req, res) => {
