@@ -16,3 +16,7 @@ body {
   text-decoration: line-through;
   color: gray;
 }
+
+.high { color: red; }
+.medium { color: orange; }
+.low { color: green; }

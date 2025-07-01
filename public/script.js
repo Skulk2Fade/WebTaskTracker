@@ -9,7 +9,8 @@ function renderTasks(tasks) {
   tasks.forEach(task => {
     const li = document.createElement('li');
     li.dataset.id = task.id;
-    li.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'})`;
+    li.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]`;
+    li.classList.add(task.priority);
     if (task.done) {
       li.classList.add('done');
     }
@@ -45,16 +46,19 @@ async function loadTasks() {
 document.getElementById('add-button').onclick = async () => {
   const input = document.getElementById('task-input');
   const dueInput = document.getElementById('due-date-input');
+  const prioritySelect = document.getElementById('priority-select');
   const text = input.value.trim();
   const dueDate = dueInput.value;
+  const priority = prioritySelect.value;
   if (text) {
     await fetch('/api/tasks', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ text, dueDate })
+      body: JSON.stringify({ text, dueDate, priority })
     });
     input.value = '';
     dueInput.value = '';
+    prioritySelect.value = 'medium';
     loadTasks();
   }
 };
