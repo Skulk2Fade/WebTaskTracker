@@ -3,6 +3,10 @@ body {
   margin: 20px;
 }
 
+#auth {
+  margin-bottom: 10px;
+}
+
 #task-form {
   margin-bottom: 10px;
 }

@@ -1,7 +1,8 @@
 # Web Task Tracker
 
 This is a simple Express-based task tracker.
-Tasks are now persisted in a local SQLite database (`tasks.db`).
+Tasks are persisted in a local SQLite database (`tasks.db`).
+Each user has their own task list after logging in.
 
 ## Installation
 
@@ -23,3 +24,10 @@ npm start
 ```
 
 The server will run on port 3000 by default.
+
+## Authentication
+
+Create an account by sending a POST request to `/api/register` with a `username`
+and `password`. Log in via `/api/login` and log out with `/api/logout`. The
+frontend includes a simple form for these actions. Tasks are only accessible
+when logged in.

@@ -4,22 +4,40 @@ const sqlite3 = require('sqlite3').verbose();
 const DB_FILE = path.join(__dirname, 'tasks.db');
 const db = new sqlite3.Database(DB_FILE);
 
-// Initialize table
+// Initialize tables
 db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     dueDate TEXT,
     priority TEXT NOT NULL,
-    done INTEGER NOT NULL DEFAULT 0
+    done INTEGER NOT NULL DEFAULT 0,
+    userId INTEGER
   )`);
+
+  db.all("PRAGMA table_info(tasks)", (err, cols) => {
+    if (!err && !cols.some(c => c.name === 'userId')) {
+      db.run('ALTER TABLE tasks ADD COLUMN userId INTEGER');
+    }
+  });
 });
 
-function listTasks({ priority, done, sort } = {}) {
+function listTasks({ priority, done, sort, userId } = {}) {
   return new Promise((resolve, reject) => {
     let query = 'SELECT * FROM tasks';
     const where = [];
     const params = [];
+
+    if (userId !== undefined) {
+      where.push('userId = ?');
+      params.push(userId);
+    }
 
     if (priority && ['high', 'medium', 'low'].includes(priority)) {
       where.push('priority = ?');
@@ -49,29 +67,35 @@ function listTasks({ priority, done, sort } = {}) {
   });
 }
 
-function createTask({ text, dueDate, priority = 'medium', done = false }) {
+function createTask({ text, dueDate, priority = 'medium', done = false, userId }) {
   return new Promise((resolve, reject) => {
     const stmt = db.run(
-      `INSERT INTO tasks (text, dueDate, priority, done) VALUES (?, ?, ?, ?)`,
-      [text, dueDate, priority, done ? 1 : 0],
+      `INSERT INTO tasks (text, dueDate, priority, done, userId) VALUES (?, ?, ?, ?, ?)`,
+      [text, dueDate, priority, done ? 1 : 0, userId],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, priority, done });
+        resolve({ id: this.lastID, text, dueDate, priority, done, userId });
       }
     );
   });
 }
 
-function getTask(id) {
+function getTask(id, userId) {
   return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
+    const params = [id];
+    let sql = 'SELECT * FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND userId = ?';
+      params.push(userId);
+    }
+    db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       resolve(row || null);
     });
   });
 }
 
-function updateTask(id, fields) {
+function updateTask(id, fields, userId) {
   return new Promise((resolve, reject) => {
     const updates = [];
     const params = [];
@@ -92,24 +116,34 @@ function updateTask(id, fields) {
       params.push(fields.done ? 1 : 0);
     }
     if (!updates.length) {
-      return getTask(id).then(resolve).catch(reject);
+      return getTask(id, userId).then(resolve).catch(reject);
     }
     params.push(id);
-    const sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
+    let sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
+    if (userId !== undefined) {
+      sql += ' AND userId = ?';
+      params.push(userId);
+    }
     db.run(sql, params, function (err) {
       if (err) return reject(err);
       if (this.changes === 0) return resolve(null);
-      getTask(id).then(resolve).catch(reject);
+      getTask(id, userId).then(resolve).catch(reject);
     });
   });
 }
 
-function deleteTask(id) {
+function deleteTask(id, userId) {
   return new Promise((resolve, reject) => {
-    getTask(id)
+    getTask(id, userId)
       .then(row => {
         if (!row) return resolve(null);
-        db.run('DELETE FROM tasks WHERE id = ?', [id], function (err) {
+        const params = [id];
+        let sql = 'DELETE FROM tasks WHERE id = ?';
+        if (userId !== undefined) {
+          sql += ' AND userId = ?';
+          params.push(userId);
+        }
+        db.run(sql, params, function (err) {
           if (err) return reject(err);
           resolve(row);
         });
@@ -118,10 +152,44 @@ function deleteTask(id) {
   });
 }
 
+function createUser({ username, password }) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO users (username, password) VALUES (?, ?)`,
+      [username, password],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID, username, password });
+      }
+    );
+  });
+}
+
+function getUserByUsername(username) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function getUserById(id) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM users WHERE id = ?`, [id], (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
   updateTask,
   deleteTask,
-  getTask
+  getTask,
+  createUser,
+  getUserByUsername,
+  getUserById
 };
