@@ -75,6 +75,19 @@ test('register user and CRUD tasks', async () => {
   expect(res.body[0].text).toBe('Test Task');
   expect(res.body[0].category).toBe('work');
 
+  // create subtask
+  res = await agent
+    .post(`/api/tasks/${taskId}/subtasks`)
+    .set('CSRF-Token', token)
+    .send({ text: 'Step 1' });
+  expect(res.status).toBe(201);
+  const subId = res.body.id;
+
+  // list subtasks
+  res = await agent.get(`/api/tasks/${taskId}/subtasks`);
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
+
   // filter by category
   res = await agent.get('/api/tasks?category=work');
   expect(res.status).toBe(200);
@@ -91,6 +104,19 @@ test('register user and CRUD tasks', async () => {
     .set('CSRF-Token', token)
     .send({ done: true });
   expect(res.body.done).toBe(true);
+
+  // update subtask
+  res = await agent
+    .put(`/api/subtasks/${subId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+  expect(res.body.done).toBe(true);
+
+  // delete subtask
+  res = await agent
+    .delete(`/api/subtasks/${subId}`)
+    .set('CSRF-Token', token);
+  expect(res.status).toBe(200);
 
   // delete task
   res = await agent

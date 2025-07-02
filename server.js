@@ -211,6 +211,61 @@ app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  try {
+    const subs = await db.listSubtasks(taskId, req.session.userId);
+    res.json(subs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load subtasks' });
+  }
+});
+
+app.post('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const text = req.body.text;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Subtask text is required' });
+  }
+  try {
+    const sub = await db.createSubtask(taskId, { text, done: false }, req.session.userId);
+    if (!sub) return res.status(404).json({ error: 'Task not found' });
+    res.status(201).json(sub);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save subtask' });
+  }
+});
+
+app.put('/api/subtasks/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { text, done } = req.body;
+  if (text !== undefined && !text.trim()) {
+    return res.status(400).json({ error: 'Subtask text cannot be empty' });
+  }
+  try {
+    const updated = await db.updateSubtask(id, { text, done }, req.session.userId);
+    if (!updated) return res.status(404).json({ error: 'Subtask not found' });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save subtask' });
+  }
+});
+
+app.delete('/api/subtasks/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const deleted = await db.deleteSubtask(id, req.session.userId);
+    if (!deleted) return res.status(404).json({ error: 'Subtask not found' });
+    res.json(deleted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete subtask' });
+  }
+});
+
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({ error: 'Invalid CSRF token' });

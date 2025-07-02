@@ -20,6 +20,11 @@ body {
   margin: 5px 0;
 }
 
+#task-list ul {
+  margin-left: 20px;
+  padding-left: 0;
+}
+
 .done {
   text-decoration: line-through;
   color: gray;
