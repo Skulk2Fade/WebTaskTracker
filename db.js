@@ -22,6 +22,14 @@ db.serialize(() => {
     category TEXT
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS subtasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskId INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE
+  )`);
+
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
     if (err) return;
     if (!cols.some(c => c.name === 'userId')) {
@@ -75,9 +83,13 @@ function listTasks({ priority, done, sort, userId, category, search } = {}) {
         " ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END";
     }
 
-    db.all(query, params, (err, rows) => {
+    db.all(query, params, async (err, rows) => {
       if (err) return reject(err);
-      resolve(rows);
+      if (!rows) return resolve([]);
+      const tasksWithSub = await Promise.all(
+        rows.map(async r => ({ ...r, subtasks: await listSubtasks(r.id, userId) }))
+      );
+      resolve(tasksWithSub);
     });
   });
 }
@@ -171,6 +183,110 @@ function deleteTask(id, userId) {
   });
 }
 
+function getSubtask(id, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [id];
+    let sql =
+      'SELECT subtasks.* FROM subtasks JOIN tasks ON tasks.id = subtasks.taskId WHERE subtasks.id = ?';
+    if (userId !== undefined) {
+      sql += ' AND tasks.userId = ?';
+      params.push(userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function listSubtasks(taskId, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql =
+      'SELECT subtasks.* FROM subtasks JOIN tasks ON tasks.id = subtasks.taskId WHERE taskId = ?';
+    if (userId !== undefined) {
+      sql += ' AND tasks.userId = ?';
+      params.push(userId);
+    }
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
+function createSubtask(taskId, { text, done = false }, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND userId = ?';
+      params.push(userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.run(
+        'INSERT INTO subtasks (taskId, text, done) VALUES (?, ?, ?)',
+        [taskId, text, done ? 1 : 0],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ id: this.lastID, taskId, text, done });
+        }
+      );
+    });
+  });
+}
+
+function updateSubtask(id, fields, userId) {
+  return new Promise((resolve, reject) => {
+    const updates = [];
+    const params = [];
+    if (fields.text !== undefined) {
+      updates.push('text = ?');
+      params.push(fields.text);
+    }
+    if (fields.done !== undefined) {
+      updates.push('done = ?');
+      params.push(fields.done ? 1 : 0);
+    }
+    if (!updates.length) {
+      return getSubtask(id, userId).then(resolve).catch(reject);
+    }
+    params.push(id);
+    let sql = `UPDATE subtasks SET ${updates.join(', ')} WHERE id = ?`;
+    if (userId !== undefined) {
+      sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ?)';
+      params.push(userId);
+    }
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      if (this.changes === 0) return resolve(null);
+      getSubtask(id, userId).then(resolve).catch(reject);
+    });
+  });
+}
+
+function deleteSubtask(id, userId) {
+  return new Promise((resolve, reject) => {
+    getSubtask(id, userId)
+      .then(row => {
+        if (!row) return resolve(null);
+        const params = [id];
+        let sql = 'DELETE FROM subtasks WHERE id = ?';
+        if (userId !== undefined) {
+          sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ?)';
+          params.push(userId);
+        }
+        db.run(sql, params, function (err) {
+          if (err) return reject(err);
+          resolve(row);
+        });
+      })
+      .catch(reject);
+  });
+}
+
 function createUser({ username, password }) {
   return new Promise((resolve, reject) => {
     db.run(
@@ -208,6 +324,11 @@ module.exports = {
   updateTask,
   deleteTask,
   getTask,
+  listSubtasks,
+  createSubtask,
+  updateSubtask,
+  deleteSubtask,
+  getSubtask,
   createUser,
   getUserByUsername,
   getUserById

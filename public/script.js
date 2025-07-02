@@ -112,7 +112,54 @@ function renderTasks(tasks) {
       loadTasks();
     };
 
-    li.append(' ', toggleBtn, ' ', editBtn, ' ', deleteBtn);
+    const subList = document.createElement('ul');
+    if (Array.isArray(task.subtasks)) {
+      task.subtasks.forEach(sub => {
+        const subLi = document.createElement('li');
+        subLi.textContent = sub.text;
+        if (sub.done) subLi.classList.add('done');
+
+        const sToggle = document.createElement('button');
+        sToggle.textContent = sub.done ? 'Undo' : 'Done';
+        sToggle.onclick = async () => {
+          await fetch(`/api/subtasks/${sub.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+            body: JSON.stringify({ done: !sub.done })
+          });
+          loadTasks();
+        };
+
+        const sDelete = document.createElement('button');
+        sDelete.textContent = 'Delete';
+        sDelete.onclick = async () => {
+          await fetch(`/api/subtasks/${sub.id}`, {
+            method: 'DELETE',
+            headers: { 'CSRF-Token': csrfToken }
+          });
+          loadTasks();
+        };
+
+        subLi.append(' ', sToggle, ' ', sDelete);
+        subList.appendChild(subLi);
+      });
+    }
+
+    const addSubBtn = document.createElement('button');
+    addSubBtn.textContent = 'Add Step';
+    addSubBtn.onclick = async () => {
+      const text = prompt('Subtask text:');
+      if (!text) return;
+      await fetch(`/api/tasks/${task.id}/subtasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+        body: JSON.stringify({ text })
+      });
+      loadTasks();
+    };
+
+    li.append(' ', toggleBtn, ' ', editBtn, ' ', deleteBtn, ' ', addSubBtn);
+    li.appendChild(subList);
     list.appendChild(li);
   });
 }
