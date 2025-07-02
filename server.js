@@ -18,7 +18,9 @@ app.use(
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    store: new SQLiteStore()
+    store: new SQLiteStore({
+      dbFile: process.env.DB_FILE || path.join(__dirname, 'tasks.db')
+    })
   })
 );
 app.use(csurf());
@@ -172,7 +174,9 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-(async () => {
+if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-})();
+}
+
+module.exports = app;

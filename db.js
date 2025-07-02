@@ -1,7 +1,7 @@
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
-const DB_FILE = path.join(__dirname, 'tasks.db');
+const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
 const db = new sqlite3.Database(DB_FILE);
 
 // Initialize tables

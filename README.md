@@ -33,3 +33,11 @@ Create an account by sending a POST request to `/api/register` with a `username`
 and `password`. Log in via `/api/login` and log out with `/api/logout`. The
 frontend includes a simple form for these actions. Tasks are only accessible
 when logged in.
+
+## Testing
+
+Automated tests are provided using Jest. Run them with:
+
+```bash
+npm test
+```
