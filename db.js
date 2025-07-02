@@ -21,7 +21,8 @@ db.serialize(() => {
     userId INTEGER,
     category TEXT,
     assignedTo INTEGER,
-    reminderSent INTEGER NOT NULL DEFAULT 0
+    reminderSent INTEGER NOT NULL DEFAULT 0,
+    repeatInterval TEXT
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS subtasks (
@@ -55,6 +56,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'reminderSent')) {
       db.run('ALTER TABLE tasks ADD COLUMN reminderSent INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!cols.some(c => c.name === 'repeatInterval')) {
+      db.run('ALTER TABLE tasks ADD COLUMN repeatInterval TEXT');
     }
   });
 });
@@ -112,14 +116,14 @@ function listTasks({ priority, done, sort, userId, category, search } = {}) {
   });
 }
 
-function createTask({ text, dueDate, priority = 'medium', done = false, userId, category, assignedTo }) {
+function createTask({ text, dueDate, priority = 'medium', done = false, userId, category, assignedTo, repeatInterval }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO tasks (text, dueDate, priority, done, userId, category, assignedTo, reminderSent) VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-      [text, dueDate, priority, done ? 1 : 0, userId, category, assignedTo],
+      `INSERT INTO tasks (text, dueDate, priority, done, userId, category, assignedTo, reminderSent, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      [text, dueDate, priority, done ? 1 : 0, userId, category, assignedTo, repeatInterval],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category, assignedTo });
+        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category, assignedTo, repeatInterval });
       }
     );
   });
@@ -160,6 +164,10 @@ function updateTask(id, fields, userId) {
     if (fields.category !== undefined) {
       updates.push('category = ?');
       params.push(fields.category);
+    }
+    if (fields.repeatInterval !== undefined) {
+      updates.push('repeatInterval = ?');
+      params.push(fields.repeatInterval);
     }
     if (fields.done !== undefined) {
       updates.push('done = ?');
