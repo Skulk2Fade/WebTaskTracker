@@ -340,6 +340,7 @@ async function handleLogin(event) {
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
   if (username && password) {
+    await updateCsrfToken();
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: {
