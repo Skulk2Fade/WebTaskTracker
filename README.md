@@ -6,6 +6,7 @@ Each user has their own task list after logging in. Tasks can optionally be assi
 You can also search your tasks by keyword using the search bar at the top of the task list or by sending a `search` query parameter to the `/api/tasks` endpoint.
 
 Tasks can be assigned to another user using `POST /api/tasks/:id/assign` with a `username` in the request body. Assigned tasks will appear in that user's task list.
+You can also discuss tasks by adding comments using `POST /api/tasks/:taskId/comments` and view them with `GET /api/tasks/:taskId/comments`.
 
 ## Installation
 

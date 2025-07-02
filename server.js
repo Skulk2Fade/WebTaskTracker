@@ -289,6 +289,45 @@ app.delete('/api/subtasks/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  try {
+    const comments = await db.listComments(taskId, req.session.userId);
+    res.json(comments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load comments' });
+  }
+});
+
+app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const text = req.body.text;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Comment text is required' });
+  }
+  try {
+    const comment = await db.createComment(taskId, text, req.session.userId);
+    if (!comment) return res.status(404).json({ error: 'Task not found' });
+    res.status(201).json(comment);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save comment' });
+  }
+});
+
+app.delete('/api/comments/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const deleted = await db.deleteComment(id, req.session.userId);
+    if (!deleted) return res.status(404).json({ error: 'Comment not found' });
+    res.json(deleted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({ error: 'Invalid CSRF token' });

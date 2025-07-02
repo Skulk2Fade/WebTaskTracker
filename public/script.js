@@ -22,6 +22,11 @@ async function fetchTasks(filters = {}) {
   return await res.json();
 }
 
+async function fetchComments(taskId) {
+  const res = await fetch(`/api/tasks/${taskId}/comments`);
+  return await res.json();
+}
+
 let currentUser = null;
 let csrfToken = '';
 
@@ -158,8 +163,43 @@ function renderTasks(tasks) {
       loadTasks();
     };
 
-    li.append(' ', toggleBtn, ' ', editBtn, ' ', deleteBtn, ' ', addSubBtn);
+    const commentList = document.createElement('ul');
+    fetchComments(task.id).then(comments => {
+      comments.forEach(c => {
+        const cLi = document.createElement('li');
+        cLi.textContent = `${c.username}: ${c.text}`;
+        if (currentUser && c.userId === currentUser.id) {
+          const cDel = document.createElement('button');
+          cDel.textContent = 'Delete';
+          cDel.onclick = async () => {
+            await fetch(`/api/comments/${c.id}`, {
+              method: 'DELETE',
+              headers: { 'CSRF-Token': csrfToken }
+            });
+            loadTasks();
+          };
+          cLi.append(' ', cDel);
+        }
+        commentList.appendChild(cLi);
+      });
+    });
+
+    const addCommentBtn = document.createElement('button');
+    addCommentBtn.textContent = 'Add Comment';
+    addCommentBtn.onclick = async () => {
+      const text = prompt('Comment:');
+      if (!text) return;
+      await fetch(`/api/tasks/${task.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+        body: JSON.stringify({ text })
+      });
+      loadTasks();
+    };
+
+    li.append(' ', toggleBtn, ' ', editBtn, ' ', deleteBtn, ' ', addSubBtn, ' ', addCommentBtn);
     li.appendChild(subList);
+    li.appendChild(commentList);
     list.appendChild(li);
   });
 }
