@@ -149,6 +149,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;
   const category = req.body.category;
+  const assignedTo = req.body.assignedTo;
   let priority = req.body.priority || 'medium';
   priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
   if (!text) {
@@ -158,18 +159,40 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Invalid due date' });
   }
   try {
+    let assigneeId = assignedTo;
+    if (assigneeId !== undefined) {
+      const user = await db.getUserById(assigneeId);
+      if (!user) return res.status(400).json({ error: 'Assigned user not found' });
+    }
     const task = await db.createTask({
       text,
       dueDate,
       priority,
       category,
       done: false,
-      userId: req.session.userId
+      userId: req.session.userId,
+      assignedTo: assigneeId
     });
     res.status(201).json(task);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save task' });
+  }
+});
+
+app.post('/api/tasks/:id/assign', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const username = req.body.username;
+  if (!username) return res.status(400).json({ error: 'Username required' });
+  try {
+    const user = await db.getUserByUsername(username);
+    if (!user) return res.status(400).json({ error: 'User not found' });
+    const updated = await db.assignTask(id, user.id, req.session.userId);
+    if (!updated) return res.status(404).json({ error: 'Task not found' });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to assign task' });
   }
 });
 

@@ -127,3 +127,38 @@ test('register user and CRUD tasks', async () => {
   res = await agent.get('/api/tasks');
   expect(res.body.length).toBe(0);
 });
+
+test('assign task to another user', async () => {
+  const alice = request.agent(app);
+  const bob = request.agent(app);
+
+  let token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  await alice
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'alice', password: 'Passw0rd!' });
+
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'bob', password: 'Passw0rd!' });
+
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  let res = await alice
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Shared Task' });
+  const taskId = res.body.id;
+
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  res = await alice
+    .post(`/api/tasks/${taskId}/assign`)
+    .set('CSRF-Token', token)
+    .send({ username: 'bob' });
+  expect(res.status).toBe(200);
+
+  res = await bob.get('/api/tasks');
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].text).toBe('Shared Task');
+});
