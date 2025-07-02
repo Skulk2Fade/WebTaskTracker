@@ -128,13 +128,14 @@ app.get('/api/me', async (req, res) => {
 
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { priority, done, sort } = req.query;
+  const { priority, done, sort, category } = req.query;
   try {
     const tasks = await db.listTasks({
       priority,
       done: done === 'true' ? true : done === 'false' ? false : undefined,
       sort,
-      userId: req.session.userId
+      userId: req.session.userId,
+      category
     });
     res.json(tasks);
   } catch (err) {
@@ -146,6 +147,7 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
 app.post('/api/tasks', requireAuth, async (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;
+  const category = req.body.category;
   let priority = req.body.priority || 'medium';
   priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
   if (!text) {
@@ -159,6 +161,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       text,
       dueDate,
       priority,
+      category,
       done: false,
       userId: req.session.userId
     });
@@ -171,7 +174,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
 
 app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { text, dueDate, priority, done } = req.body;
+  const { text, dueDate, priority, done, category } = req.body;
   if (text !== undefined && !text.trim()) {
     return res.status(400).json({ error: 'Task text cannot be empty' });
   }
@@ -182,7 +185,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Invalid due date' });
   }
   try {
-    const updated = await db.updateTask(id, { text, dueDate, priority, done }, req.session.userId);
+    const updated = await db.updateTask(id, { text, dueDate, priority, done, category }, req.session.userId);
     if (!updated) {
       return res.status(404).json({ error: 'Task not found' });
     }

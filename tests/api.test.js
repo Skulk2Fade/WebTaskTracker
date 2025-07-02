@@ -64,7 +64,7 @@ test('register user and CRUD tasks', async () => {
   res = await agent
     .post('/api/tasks')
     .set('CSRF-Token', token)
-    .send({ text: 'Test Task', priority: 'high', dueDate: '2099-12-31' });
+    .send({ text: 'Test Task', priority: 'high', dueDate: '2099-12-31', category: 'work' });
   expect(res.status).toBe(201);
   const taskId = res.body.id;
 
@@ -73,6 +73,12 @@ test('register user and CRUD tasks', async () => {
   expect(res.status).toBe(200);
   expect(res.body.length).toBe(1);
   expect(res.body[0].text).toBe('Test Task');
+  expect(res.body[0].category).toBe('work');
+
+  // filter by category
+  res = await agent.get('/api/tasks?category=work');
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
 
   // update task
   res = await agent
