@@ -145,6 +145,16 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/reminders', requireAuth, async (req, res) => {
+  try {
+    const tasks = await db.getDueSoonTasks(req.session.userId);
+    res.json(tasks);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load reminders' });
+  }
+});
+
 app.post('/api/tasks', requireAuth, async (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;

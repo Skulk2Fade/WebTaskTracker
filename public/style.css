@@ -47,3 +47,10 @@ label {
   margin-right: 5px;
   display: inline-block;
 }
+
+#notifications {
+  margin-bottom: 10px;
+  list-style: none;
+  padding: 0;
+  color: blue;
+}

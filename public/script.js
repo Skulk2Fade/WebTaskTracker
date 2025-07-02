@@ -29,6 +29,7 @@ async function fetchComments(taskId) {
 
 let currentUser = null;
 let csrfToken = '';
+let reminderInterval = null;
 
 async function updateCsrfToken() {
   const res = await fetch('/api/csrf-token');
@@ -45,6 +46,7 @@ async function checkAuth() {
   const userInfo = document.getElementById('user-info');
   const taskForm = document.getElementById('task-form');
   const controls = document.getElementById('controls');
+  const notify = document.getElementById('notifications');
   if (currentUser) {
     loginForm.style.display = 'none';
     userInfo.style.display = 'block';
@@ -52,12 +54,17 @@ async function checkAuth() {
     taskForm.style.display = 'block';
     controls.style.display = 'block';
     loadTasks();
+    loadReminders();
+    if (reminderInterval) clearInterval(reminderInterval);
+    reminderInterval = setInterval(loadReminders, 60000);
   } else {
     loginForm.style.display = 'block';
     userInfo.style.display = 'none';
     taskForm.style.display = 'none';
     controls.style.display = 'none';
     document.getElementById('task-list').innerHTML = '';
+    notify.style.display = 'none';
+    if (reminderInterval) clearInterval(reminderInterval);
   }
 }
 
@@ -86,6 +93,7 @@ function renderTasks(tasks) {
         body: JSON.stringify({ done: !task.done })
       });
       loadTasks();
+      loadReminders();
     };
 
     const editBtn = document.createElement('button');
@@ -105,6 +113,7 @@ function renderTasks(tasks) {
         body: JSON.stringify({ text: newText, dueDate: newDue, priority: newPriority, category: newCategory })
       });
       loadTasks();
+      loadReminders();
     };
 
     const deleteBtn = document.createElement('button');
@@ -115,6 +124,7 @@ function renderTasks(tasks) {
         headers: { 'CSRF-Token': csrfToken }
       });
       loadTasks();
+      loadReminders();
     };
 
     const subList = document.createElement('ul');
@@ -133,6 +143,7 @@ function renderTasks(tasks) {
             body: JSON.stringify({ done: !sub.done })
           });
           loadTasks();
+          loadReminders();
         };
 
         const sDelete = document.createElement('button');
@@ -143,6 +154,7 @@ function renderTasks(tasks) {
             headers: { 'CSRF-Token': csrfToken }
           });
           loadTasks();
+          loadReminders();
         };
 
         subLi.append(' ', sToggle, ' ', sDelete);
@@ -161,6 +173,7 @@ function renderTasks(tasks) {
         body: JSON.stringify({ text })
       });
       loadTasks();
+      loadReminders();
     };
 
     const commentList = document.createElement('ul');
@@ -177,6 +190,7 @@ function renderTasks(tasks) {
               headers: { 'CSRF-Token': csrfToken }
             });
             loadTasks();
+            loadReminders();
           };
           cLi.append(' ', cDel);
         }
@@ -195,6 +209,7 @@ function renderTasks(tasks) {
         body: JSON.stringify({ text })
       });
       loadTasks();
+      loadReminders();
     };
 
     li.append(' ', toggleBtn, ' ', editBtn, ' ', deleteBtn, ' ', addSubBtn, ' ', addCommentBtn);
@@ -212,6 +227,23 @@ async function loadTasks() {
   const sort = document.getElementById('sort-select').value;
   const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, sort, search });
   renderTasks(tasks);
+}
+
+async function loadReminders() {
+  const res = await fetch('/api/reminders');
+  const reminders = await res.json();
+  const container = document.getElementById('notifications');
+  container.innerHTML = '';
+  if (Array.isArray(reminders) && reminders.length > 0) {
+    container.style.display = 'block';
+    reminders.forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = `Reminder: "${r.text}" due ${r.dueDate}`;
+      container.appendChild(li);
+    });
+  } else {
+    container.style.display = 'none';
+  }
 }
 
 document.getElementById('add-button').onclick = async () => {
@@ -237,6 +269,7 @@ document.getElementById('add-button').onclick = async () => {
     categoryInput.value = '';
     prioritySelect.value = 'medium';
     loadTasks();
+    loadReminders();
   }
 };
 
