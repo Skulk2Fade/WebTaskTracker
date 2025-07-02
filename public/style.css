@@ -18,6 +18,7 @@ body {
 #task-list li {
   list-style: none;
   margin: 5px 0;
+  word-wrap: break-word;
 }
 
 #task-list ul {
@@ -53,4 +54,36 @@ label {
   list-style: none;
   padding: 0;
   color: blue;
+}
+
+/* Responsive layout for small screens */
+@media (max-width: 600px) {
+  body {
+    margin: 10px;
+  }
+
+  #task-form,
+  #controls,
+  #bulk-controls {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #task-form label,
+  #controls label,
+  #bulk-controls label {
+    margin-right: 0;
+  }
+
+  #task-form input,
+  #task-form select,
+  #task-form button,
+  #controls input,
+  #controls select,
+  #controls button,
+  #bulk-controls select,
+  #bulk-controls button {
+    width: 100%;
+    margin: 4px 0;
+  }
 }
