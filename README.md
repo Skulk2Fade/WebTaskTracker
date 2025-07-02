@@ -48,6 +48,20 @@ when logged in.
 Passwords must be at least 8 characters long and include upper and lower case
 letters and a number.
 
+## Password Reset
+
+If you forget your password, request a reset token by sending a POST request to
+`/api/request-password-reset` with your `username` in the body. The server
+responds with a one-time `token` (in a real deployment this would be emailed to
+you). Submit the token together with a new password to `/api/reset-password`:
+
+```
+POST /api/reset-password
+{ "token": "token_from_request", "password": "NewPass1" }
+```
+
+The same password strength rules apply when setting a new password.
+
 ## CSRF Tokens
 
 The application uses CSRF protection on all non-GET requests. Obtain a token

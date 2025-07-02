@@ -43,6 +43,15 @@ db.serialize(() => {
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS password_resets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    expiresAt TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
     if (err) return;
     if (!cols.some(c => c.name === 'userId')) {
@@ -449,6 +458,58 @@ function getDueSoonTasks(userId) {
   });
 }
 
+function createPasswordReset({ userId, token, expiresAt }) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO password_resets (userId, token, expiresAt) VALUES (?, ?, ?)`,
+      [userId, token, expiresAt],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID, userId, token, expiresAt, used: 0 });
+      }
+    );
+  });
+}
+
+function getPasswordReset(token) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM password_resets WHERE token = ?`,
+      [token],
+      (err, row) => {
+        if (err) return reject(err);
+        resolve(row || null);
+      }
+    );
+  });
+}
+
+function markPasswordResetUsed(id) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE password_resets SET used = 1 WHERE id = ?`,
+      [id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+  });
+}
+
+function updateUserPassword(id, password) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET password = ? WHERE id = ?`,
+      [password, id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -467,5 +528,9 @@ module.exports = {
   createUser,
   getUserByUsername,
   getUserById,
-  getDueSoonTasks
+  getDueSoonTasks,
+  createPasswordReset,
+  getPasswordReset,
+  markPasswordResetUsed,
+  updateUserPassword
 };
