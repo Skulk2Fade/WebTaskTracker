@@ -44,7 +44,12 @@ app.use(
     saveUninitialized: false,
     store: new SQLiteStore({
       dbFile: process.env.DB_FILE || path.join(__dirname, 'tasks.db')
-    })
+    }),
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    }
   })
 );
 app.use(csurf());
