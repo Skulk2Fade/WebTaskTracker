@@ -31,6 +31,16 @@ db.serialize(() => {
     FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
     if (err) return;
     if (!cols.some(c => c.name === 'userId')) {
@@ -214,6 +224,72 @@ function listSubtasks(taskId, userId) {
   });
 }
 
+function listComments(taskId, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql =
+      'SELECT comments.*, users.username FROM comments ' +
+      'JOIN tasks ON tasks.id = comments.taskId ' +
+      'JOIN users ON users.id = comments.userId WHERE comments.taskId = ?';
+    if (userId !== undefined) {
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    sql += ' ORDER BY comments.createdAt';
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
+function createComment(taskId, text, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.run(
+        'INSERT INTO comments (taskId, userId, text) VALUES (?, ?, ?)',
+        [taskId, userId, text],
+        function (err) {
+          if (err) return reject(err);
+          db.get(
+            'SELECT comments.*, users.username FROM comments JOIN users ON users.id = comments.userId WHERE comments.id = ?',
+            [this.lastID],
+            (err, row) => {
+              if (err) return reject(err);
+              resolve(row);
+            }
+          );
+        }
+      );
+    });
+  });
+}
+
+function deleteComment(id, userId) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM comments WHERE id = ? AND userId = ?',
+      [id, userId],
+      (err, row) => {
+        if (err) return reject(err);
+        if (!row) return resolve(null);
+        db.run('DELETE FROM comments WHERE id = ?', [id], function (err) {
+          if (err) return reject(err);
+          resolve(row);
+        });
+      }
+    );
+  });
+}
+
 function createSubtask(taskId, { text, done = false }, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -343,6 +419,9 @@ module.exports = {
   updateSubtask,
   deleteSubtask,
   getSubtask,
+  listComments,
+  createComment,
+  deleteComment,
   assignTask,
   createUser,
   getUserByUsername,

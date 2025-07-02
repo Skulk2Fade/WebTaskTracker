@@ -88,6 +88,25 @@ test('register user and CRUD tasks', async () => {
   expect(res.status).toBe(200);
   expect(res.body.length).toBe(1);
 
+  // create comment
+  res = await agent
+    .post(`/api/tasks/${taskId}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'Nice task' });
+  expect(res.status).toBe(201);
+  const commentId = res.body.id;
+
+  // list comments
+  res = await agent.get(`/api/tasks/${taskId}/comments`);
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
+
+  // delete comment
+  res = await agent
+    .delete(`/api/comments/${commentId}`)
+    .set('CSRF-Token', token);
+  expect(res.status).toBe(200);
+
   // filter by category
   res = await agent.get('/api/tasks?category=work');
   expect(res.status).toBe(200);
