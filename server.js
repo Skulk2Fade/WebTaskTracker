@@ -8,6 +8,26 @@ const csurf = require('csurf');
 const app = express();
 
 app.use(express.json());
+
+function isValidFutureDate(str) {
+  if (str === undefined || str === null || str === '') return true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+  const date = new Date(str + 'T00:00:00Z');
+  if (isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  return date >= today;
+}
+
+function isStrongPassword(pw) {
+  return (
+    typeof pw === 'string' &&
+    pw.length >= 8 &&
+    /[a-z]/.test(pw) &&
+    /[A-Z]/.test(pw) &&
+    /[0-9]/.test(pw)
+  );
+}
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
   console.error('SESSION_SECRET environment variable is required');
@@ -41,6 +61,11 @@ app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
+  }
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({
+      error: 'Password must be at least 8 characters and include upper and lower case letters and a number'
+    });
   }
   try {
     const hashed = await bcrypt.hash(password, 10);
@@ -117,6 +142,9 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   if (!text) {
     return res.status(400).json({ error: 'Task text is required' });
   }
+  if (dueDate && !isValidFutureDate(dueDate)) {
+    return res.status(400).json({ error: 'Invalid due date' });
+  }
   try {
     const task = await db.createTask({
       text,
@@ -140,6 +168,9 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   }
   if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
     return res.status(400).json({ error: 'Invalid priority value' });
+  }
+  if (dueDate !== undefined && dueDate !== null && dueDate !== '' && !isValidFutureDate(dueDate)) {
+    return res.status(400).json({ error: 'Invalid due date' });
   }
   try {
     const updated = await db.updateTask(id, { text, dueDate, priority, done }, req.session.userId);
