@@ -3,6 +3,9 @@ async function fetchTasks(filters = {}) {
   if (filters.priority && filters.priority !== 'all') {
     params.append('priority', filters.priority);
   }
+  if (filters.category && filters.category.trim() !== '') {
+    params.append('category', filters.category.trim());
+  }
   if (filters.status === 'completed') {
     params.append('done', 'true');
   } else if (filters.status === 'active') {
@@ -56,7 +59,8 @@ function renderTasks(tasks) {
   tasks.forEach(task => {
     const li = document.createElement('li');
     li.dataset.id = task.id;
-    li.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]`;
+    const cat = task.category ? ` {${task.category}}` : '';
+    li.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]${cat}`;
     li.classList.add(task.priority);
     if (task.done) {
       li.classList.add('done');
@@ -83,13 +87,14 @@ function renderTasks(tasks) {
       if (newText === null) return;
       const newDue = prompt('Due date (YYYY-MM-DD):', task.dueDate || '');
       const newPriority = prompt('Priority (high, medium, low):', task.priority);
+      const newCategory = prompt('Category:', task.category || '');
       await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'CSRF-Token': csrfToken
         },
-        body: JSON.stringify({ text: newText, dueDate: newDue, priority: newPriority })
+        body: JSON.stringify({ text: newText, dueDate: newDue, priority: newPriority, category: newCategory })
       });
       loadTasks();
     };
@@ -112,18 +117,21 @@ function renderTasks(tasks) {
 async function loadTasks() {
   const status = document.getElementById('status-filter').value;
   const priorityFilter = document.getElementById('priority-filter').value;
+  const categoryFilter = document.getElementById('category-filter').value;
   const sort = document.getElementById('sort-select').value;
-  const tasks = await fetchTasks({ status, priority: priorityFilter, sort });
+  const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, sort });
   renderTasks(tasks);
 }
 
 document.getElementById('add-button').onclick = async () => {
   const input = document.getElementById('task-input');
   const dueInput = document.getElementById('due-date-input');
+  const categoryInput = document.getElementById('category-input');
   const prioritySelect = document.getElementById('priority-select');
   const text = input.value.trim();
   const dueDate = dueInput.value;
   const priority = prioritySelect.value;
+  const category = categoryInput.value.trim();
   if (text) {
     await fetch('/api/tasks', {
       method: 'POST',
@@ -131,10 +139,11 @@ document.getElementById('add-button').onclick = async () => {
         'Content-Type': 'application/json',
         'CSRF-Token': csrfToken
       },
-      body: JSON.stringify({ text, dueDate, priority })
+      body: JSON.stringify({ text, dueDate, priority, category })
     });
     input.value = '';
     dueInput.value = '';
+    categoryInput.value = '';
     prioritySelect.value = 'medium';
     loadTasks();
   }
@@ -142,6 +151,7 @@ document.getElementById('add-button').onclick = async () => {
 
 document.getElementById('status-filter').onchange = loadTasks;
 document.getElementById('priority-filter').onchange = loadTasks;
+document.getElementById('category-filter').onchange = loadTasks;
 document.getElementById('sort-select').onchange = loadTasks;
 
 async function handleLogin(event) {

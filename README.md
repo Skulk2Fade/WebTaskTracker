@@ -2,7 +2,7 @@
 
 This is a simple Express-based task tracker.
 Tasks are persisted in a local SQLite database (`tasks.db`).
-Each user has their own task list after logging in.
+Each user has their own task list after logging in. Tasks can optionally be assigned a category label so they can be filtered and grouped.
 
 ## Installation
 

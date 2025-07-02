@@ -18,17 +18,22 @@ db.serialize(() => {
     dueDate TEXT,
     priority TEXT NOT NULL,
     done INTEGER NOT NULL DEFAULT 0,
-    userId INTEGER
+    userId INTEGER,
+    category TEXT
   )`);
 
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
-    if (!err && !cols.some(c => c.name === 'userId')) {
+    if (err) return;
+    if (!cols.some(c => c.name === 'userId')) {
       db.run('ALTER TABLE tasks ADD COLUMN userId INTEGER');
+    }
+    if (!cols.some(c => c.name === 'category')) {
+      db.run('ALTER TABLE tasks ADD COLUMN category TEXT');
     }
   });
 });
 
-function listTasks({ priority, done, sort, userId } = {}) {
+function listTasks({ priority, done, sort, userId, category } = {}) {
   return new Promise((resolve, reject) => {
     let query = 'SELECT * FROM tasks';
     const where = [];
@@ -42,6 +47,11 @@ function listTasks({ priority, done, sort, userId } = {}) {
     if (priority && ['high', 'medium', 'low'].includes(priority)) {
       where.push('priority = ?');
       params.push(priority);
+    }
+
+    if (category) {
+      where.push('category = ?');
+      params.push(category);
     }
 
     if (done === true || done === false) {
@@ -67,14 +77,14 @@ function listTasks({ priority, done, sort, userId } = {}) {
   });
 }
 
-function createTask({ text, dueDate, priority = 'medium', done = false, userId }) {
+function createTask({ text, dueDate, priority = 'medium', done = false, userId, category }) {
   return new Promise((resolve, reject) => {
     const stmt = db.run(
-      `INSERT INTO tasks (text, dueDate, priority, done, userId) VALUES (?, ?, ?, ?, ?)`,
-      [text, dueDate, priority, done ? 1 : 0, userId],
+      `INSERT INTO tasks (text, dueDate, priority, done, userId, category) VALUES (?, ?, ?, ?, ?, ?)`,
+      [text, dueDate, priority, done ? 1 : 0, userId, category],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, priority, done, userId });
+        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category });
       }
     );
   });
@@ -110,6 +120,10 @@ function updateTask(id, fields, userId) {
     if (fields.priority !== undefined) {
       updates.push('priority = ?');
       params.push(fields.priority);
+    }
+    if (fields.category !== undefined) {
+      updates.push('category = ?');
+      params.push(fields.category);
     }
     if (fields.done !== undefined) {
       updates.push('done = ?');
