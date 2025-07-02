@@ -52,8 +52,8 @@ app.use(
     }
   })
 );
-app.use(csurf());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(csurf());
 
 app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
