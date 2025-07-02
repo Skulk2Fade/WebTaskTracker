@@ -88,3 +88,36 @@ test('login fails for unknown user', async () => {
   expect(res.status).toBe(400);
 });
 
+test('password reset flow', async () => {
+  const agent = request.agent(app);
+
+  let token = await getCsrfToken(agent);
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'resetuser', password: 'OldPass1' });
+
+  token = await getCsrfToken(agent);
+  let res = await agent
+    .post('/api/request-password-reset')
+    .set('CSRF-Token', token)
+    .send({ username: 'resetuser' });
+  expect(res.status).toBe(200);
+  const resetToken = res.body.token;
+  expect(resetToken).toBeTruthy();
+
+  token = await getCsrfToken(agent);
+  res = await agent
+    .post('/api/reset-password')
+    .set('CSRF-Token', token)
+    .send({ token: resetToken, password: 'NewPass1' });
+  expect(res.status).toBe(200);
+
+  token = await getCsrfToken(agent);
+  res = await agent
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'resetuser', password: 'NewPass1' });
+  expect(res.status).toBe(200);
+});
+

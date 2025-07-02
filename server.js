@@ -4,6 +4,7 @@ const db = require('./db');
 const session = require('express-session');
 const SQLiteStore = require('./sqliteStore');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const csurf = require('csurf');
 const app = express();
 
@@ -118,6 +119,55 @@ app.post('/api/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ ok: true });
   });
+});
+
+app.post('/api/request-password-reset', async (req, res) => {
+  const { username } = req.body;
+  if (!username) {
+    return res.status(400).json({ error: 'Username required' });
+  }
+  try {
+    const user = await db.getUserByUsername(username);
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      await db.createPasswordReset({ userId: user.id, token, expiresAt });
+      // In a real app, the token would be emailed to the user
+      res.json({ ok: true, token });
+    } else {
+      // Respond with ok even if user doesn't exist to avoid enumeration
+      res.json({ ok: true });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create reset token' });
+  }
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token and password required' });
+  }
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({
+      error:
+        'Password must be at least 8 characters and include upper and lower case letters and a number'
+    });
+  }
+  try {
+    const reset = await db.getPasswordReset(token);
+    if (!reset || reset.used || new Date(reset.expiresAt) < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await db.updateUserPassword(reset.userId, hashed);
+    await db.markPasswordResetUsed(reset.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
 });
 
 app.get('/api/me', async (req, res) => {
