@@ -88,6 +88,44 @@ test('login fails for unknown user', async () => {
   expect(res.status).toBe(400);
 });
 
+test('two factor authentication flow', async () => {
+  const agent = request.agent(app);
+
+  let token = await getCsrfToken(agent);
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'twofa', password: 'Passw0rd!' });
+
+  token = await getCsrfToken(agent);
+  let res = await agent
+    .post('/api/enable-2fa')
+    .set('CSRF-Token', token);
+  expect(res.status).toBe(200);
+  const secret = res.body.secret;
+  expect(secret).toBeTruthy();
+
+  token = await getCsrfToken(agent);
+  await agent.post('/api/logout').set('CSRF-Token', token);
+
+  token = await getCsrfToken(agent);
+  res = await agent
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'twofa', password: 'Passw0rd!' });
+  expect(res.status).toBe(400);
+
+  const totp = require('../totp');
+  const otp = totp.generateToken(secret);
+
+  token = await getCsrfToken(agent);
+  res = await agent
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'twofa', password: 'Passw0rd!', token: otp });
+  expect(res.status).toBe(200);
+});
+
 test('password reset flow', async () => {
   const agent = request.agent(app);
 
