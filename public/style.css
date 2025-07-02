@@ -33,3 +33,8 @@ body {
   color: red;
   margin-top: 5px;
 }
+
+label {
+  margin-right: 5px;
+  display: inline-block;
+}
