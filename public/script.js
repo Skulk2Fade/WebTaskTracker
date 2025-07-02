@@ -30,6 +30,7 @@ async function fetchComments(taskId) {
 let currentUser = null;
 let csrfToken = '';
 let reminderInterval = null;
+const selectedTasks = new Set();
 
 async function updateCsrfToken() {
   const res = await fetch('/api/csrf-token');
@@ -46,6 +47,7 @@ async function checkAuth() {
   const userInfo = document.getElementById('user-info');
   const taskForm = document.getElementById('task-form');
   const controls = document.getElementById('controls');
+  const bulkControls = document.getElementById('bulk-controls');
   const notify = document.getElementById('notifications');
   if (currentUser) {
     loginForm.style.display = 'none';
@@ -53,6 +55,7 @@ async function checkAuth() {
     document.getElementById('current-user').textContent = currentUser.username;
     taskForm.style.display = 'block';
     controls.style.display = 'block';
+    bulkControls.style.display = 'block';
     loadTasks();
     loadReminders();
     if (reminderInterval) clearInterval(reminderInterval);
@@ -62,6 +65,7 @@ async function checkAuth() {
     userInfo.style.display = 'none';
     taskForm.style.display = 'none';
     controls.style.display = 'none';
+    bulkControls.style.display = 'none';
     document.getElementById('task-list').innerHTML = '';
     notify.style.display = 'none';
     if (reminderInterval) clearInterval(reminderInterval);
@@ -75,11 +79,23 @@ function renderTasks(tasks) {
     const li = document.createElement('li');
     li.dataset.id = task.id;
     const cat = task.category ? ` {${task.category}}` : '';
-    li.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]${cat}`;
+    const textSpan = document.createElement('span');
+    textSpan.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]${cat}`;
+    li.appendChild(textSpan);
     li.classList.add(task.priority);
     if (task.done) {
       li.classList.add('done');
     }
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'task-select';
+    checkbox.checked = selectedTasks.has(task.id);
+    checkbox.onchange = () => {
+      if (checkbox.checked) selectedTasks.add(task.id);
+      else selectedTasks.delete(task.id);
+    };
+    li.prepend(checkbox, ' ');
 
     const toggleBtn = document.createElement('button');
     toggleBtn.textContent = task.done ? 'Undo' : 'Done';
@@ -225,6 +241,7 @@ async function loadTasks() {
   const categoryFilter = document.getElementById('category-filter').value;
   const search = document.getElementById('search-input').value;
   const sort = document.getElementById('sort-select').value;
+  selectedTasks.clear();
   const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, sort, search });
   renderTasks(tasks);
 }
@@ -278,6 +295,43 @@ document.getElementById('priority-filter').onchange = loadTasks;
 document.getElementById('category-filter').onchange = loadTasks;
 document.getElementById('sort-select').onchange = loadTasks;
 document.getElementById('search-input').addEventListener('input', loadTasks);
+
+document.getElementById('bulk-done').onclick = async () => {
+  if (selectedTasks.size === 0) return;
+  await fetch('/api/tasks/bulk', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+    body: JSON.stringify({ ids: Array.from(selectedTasks), done: true })
+  });
+  selectedTasks.clear();
+  loadTasks();
+  loadReminders();
+};
+
+document.getElementById('bulk-delete').onclick = async () => {
+  if (selectedTasks.size === 0) return;
+  await fetch('/api/tasks/bulk-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+    body: JSON.stringify({ ids: Array.from(selectedTasks) })
+  });
+  selectedTasks.clear();
+  loadTasks();
+  loadReminders();
+};
+
+document.getElementById('bulk-priority-btn').onclick = async () => {
+  if (selectedTasks.size === 0) return;
+  const priority = document.getElementById('bulk-priority').value;
+  await fetch('/api/tasks/bulk', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+    body: JSON.stringify({ ids: Array.from(selectedTasks), priority })
+  });
+  selectedTasks.clear();
+  loadTasks();
+  loadReminders();
+};
 
 async function handleLogin(event) {
   if (event) event.preventDefault();

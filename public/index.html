@@ -64,6 +64,17 @@
       <option value="priority">Sort by Priority</option>
     </select>
   </div>
+  <div id="bulk-controls" style="margin-bottom:10px;">
+    <button id="bulk-done">Mark Selected Done</button>
+    <button id="bulk-delete">Delete Selected</button>
+    <label for="bulk-priority">Set Priority</label>
+    <select id="bulk-priority">
+      <option value="high">High</option>
+      <option value="medium" selected>Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <button id="bulk-priority-btn">Apply</button>
+  </div>
   <ul id="task-list"></ul>
 
   <script src="script.js"></script>

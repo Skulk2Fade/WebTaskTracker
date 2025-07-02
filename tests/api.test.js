@@ -211,3 +211,46 @@ test('recurring task creates next occurrence when completed', async () => {
   expect(dates).toContain('2099-01-01');
   expect(dates).toContain('2099-01-02');
 });
+
+test('bulk update and delete', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'dan', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'A' });
+  const id1 = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'B' });
+  const id2 = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .put('/api/tasks/bulk')
+    .set('CSRF-Token', token)
+    .send({ ids: [id1, id2], done: true });
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(2);
+  expect(res.body.every(t => t.done)).toBe(true);
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks/bulk-delete')
+    .set('CSRF-Token', token)
+    .send({ ids: [id1, id2] });
+  expect(res.status).toBe(200);
+
+  res = await agent.get('/api/tasks');
+  expect(res.body.length).toBe(0);
+});

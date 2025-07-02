@@ -280,6 +280,52 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.put('/api/tasks/bulk', requireAuth, async (req, res) => {
+  const { ids, done, priority } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids required' });
+  }
+  if (done === undefined && priority === undefined) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+  if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
+    return res.status(400).json({ error: 'Invalid priority value' });
+  }
+  try {
+    const results = [];
+    for (const id of ids) {
+      const updated = await db.updateTask(
+        id,
+        { ...(done !== undefined ? { done } : {}), ...(priority !== undefined ? { priority } : {}) },
+        req.session.userId
+      );
+      if (updated) results.push(updated);
+    }
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update tasks' });
+  }
+});
+
+app.post('/api/tasks/bulk-delete', requireAuth, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids required' });
+  }
+  try {
+    const results = [];
+    for (const id of ids) {
+      const del = await db.deleteTask(id, req.session.userId);
+      if (del) results.push(del);
+    }
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete tasks' });
+  }
+});
+
 app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
