@@ -19,7 +19,8 @@ db.serialize(() => {
     priority TEXT NOT NULL,
     done INTEGER NOT NULL DEFAULT 0,
     userId INTEGER,
-    category TEXT
+    category TEXT,
+    assignedTo INTEGER
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS subtasks (
@@ -38,6 +39,9 @@ db.serialize(() => {
     if (!cols.some(c => c.name === 'category')) {
       db.run('ALTER TABLE tasks ADD COLUMN category TEXT');
     }
+    if (!cols.some(c => c.name === 'assignedTo')) {
+      db.run('ALTER TABLE tasks ADD COLUMN assignedTo INTEGER');
+    }
   });
 });
 
@@ -48,8 +52,8 @@ function listTasks({ priority, done, sort, userId, category, search } = {}) {
     const params = [];
 
     if (userId !== undefined) {
-      where.push('userId = ?');
-      params.push(userId);
+      where.push('(userId = ? OR assignedTo = ?)');
+      params.push(userId, userId);
     }
 
     if (priority && ['high', 'medium', 'low'].includes(priority)) {
@@ -94,14 +98,14 @@ function listTasks({ priority, done, sort, userId, category, search } = {}) {
   });
 }
 
-function createTask({ text, dueDate, priority = 'medium', done = false, userId, category }) {
+function createTask({ text, dueDate, priority = 'medium', done = false, userId, category, assignedTo }) {
   return new Promise((resolve, reject) => {
     const stmt = db.run(
-      `INSERT INTO tasks (text, dueDate, priority, done, userId, category) VALUES (?, ?, ?, ?, ?, ?)`,
-      [text, dueDate, priority, done ? 1 : 0, userId, category],
+      `INSERT INTO tasks (text, dueDate, priority, done, userId, category, assignedTo) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [text, dueDate, priority, done ? 1 : 0, userId, category, assignedTo],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category });
+        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category, assignedTo });
       }
     );
   });
@@ -112,8 +116,8 @@ function getTask(id, userId) {
     const params = [id];
     let sql = 'SELECT * FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND userId = ?';
-      params.push(userId);
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
     }
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
@@ -152,8 +156,8 @@ function updateTask(id, fields, userId) {
     params.push(id);
     let sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
     if (userId !== undefined) {
-      sql += ' AND userId = ?';
-      params.push(userId);
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
     }
     db.run(sql, params, function (err) {
       if (err) return reject(err);
@@ -165,21 +169,16 @@ function updateTask(id, fields, userId) {
 
 function deleteTask(id, userId) {
   return new Promise((resolve, reject) => {
-    getTask(id, userId)
-      .then(row => {
-        if (!row) return resolve(null);
-        const params = [id];
-        let sql = 'DELETE FROM tasks WHERE id = ?';
-        if (userId !== undefined) {
-          sql += ' AND userId = ?';
-          params.push(userId);
-        }
-        db.run(sql, params, function (err) {
-          if (err) return reject(err);
-          resolve(row);
-        });
-      })
-      .catch(reject);
+    if (userId === undefined) return resolve(null);
+    const params = [id, userId];
+    db.get('SELECT * FROM tasks WHERE id = ? AND userId = ?', params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.run('DELETE FROM tasks WHERE id = ? AND userId = ?', params, function (err) {
+        if (err) return reject(err);
+        resolve(row);
+      });
+    });
   });
 }
 
@@ -189,8 +188,8 @@ function getSubtask(id, userId) {
     let sql =
       'SELECT subtasks.* FROM subtasks JOIN tasks ON tasks.id = subtasks.taskId WHERE subtasks.id = ?';
     if (userId !== undefined) {
-      sql += ' AND tasks.userId = ?';
-      params.push(userId);
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ?)';
+      params.push(userId, userId);
     }
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
@@ -205,8 +204,8 @@ function listSubtasks(taskId, userId) {
     let sql =
       'SELECT subtasks.* FROM subtasks JOIN tasks ON tasks.id = subtasks.taskId WHERE taskId = ?';
     if (userId !== undefined) {
-      sql += ' AND tasks.userId = ?';
-      params.push(userId);
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ?)';
+      params.push(userId, userId);
     }
     db.all(sql, params, (err, rows) => {
       if (err) return reject(err);
@@ -220,8 +219,8 @@ function createSubtask(taskId, { text, done = false }, userId) {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND userId = ?';
-      params.push(userId);
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
     }
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
@@ -256,8 +255,8 @@ function updateSubtask(id, fields, userId) {
     params.push(id);
     let sql = `UPDATE subtasks SET ${updates.join(', ')} WHERE id = ?`;
     if (userId !== undefined) {
-      sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ?)';
-      params.push(userId);
+      sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
     }
     db.run(sql, params, function (err) {
       if (err) return reject(err);
@@ -275,8 +274,8 @@ function deleteSubtask(id, userId) {
         const params = [id];
         let sql = 'DELETE FROM subtasks WHERE id = ?';
         if (userId !== undefined) {
-          sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ?)';
-          params.push(userId);
+          sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ? OR assignedTo = ?)';
+          params.push(userId, userId);
         }
         db.run(sql, params, function (err) {
           if (err) return reject(err);
@@ -284,6 +283,21 @@ function deleteSubtask(id, userId) {
         });
       })
       .catch(reject);
+  });
+}
+
+function assignTask(id, assignedTo, ownerId) {
+  return new Promise((resolve, reject) => {
+    const params = [assignedTo, id, ownerId];
+    db.run(
+      'UPDATE tasks SET assignedTo = ? WHERE id = ? AND userId = ?',
+      params,
+      function (err) {
+        if (err) return reject(err);
+        if (this.changes === 0) return resolve(null);
+        getTask(id, ownerId).then(resolve).catch(reject);
+      }
+    );
   });
 }
 
@@ -329,6 +343,7 @@ module.exports = {
   updateSubtask,
   deleteSubtask,
   getSubtask,
+  assignTask,
   createUser,
   getUserByUsername,
   getUserById
