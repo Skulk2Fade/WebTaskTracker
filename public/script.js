@@ -144,7 +144,8 @@ document.getElementById('status-filter').onchange = loadTasks;
 document.getElementById('priority-filter').onchange = loadTasks;
 document.getElementById('sort-select').onchange = loadTasks;
 
-document.getElementById('login-button').onclick = async () => {
+async function handleLogin(event) {
+  if (event) event.preventDefault();
   const username = document.getElementById('username-input').value.trim();
   const password = document.getElementById('password-input').value;
   const errorEl = document.getElementById('login-error');
@@ -167,7 +168,10 @@ document.getElementById('login-button').onclick = async () => {
       errorEl.textContent = data.error || 'Login failed';
     }
   }
-};
+}
+
+document.getElementById('login-button').onclick = handleLogin;
+document.getElementById('login-form').addEventListener('submit', handleLogin);
 
 document.getElementById('register-button').onclick = async () => {
   const username = document.getElementById('username-input').value.trim();

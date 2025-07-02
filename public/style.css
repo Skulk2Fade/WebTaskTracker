@@ -32,6 +32,10 @@ body {
 .error {
   color: red;
   margin-top: 5px;
+  font-weight: bold;
+  padding: 4px;
+  border: 1px solid red;
+  background: #fdd;
 }
 
 label {
