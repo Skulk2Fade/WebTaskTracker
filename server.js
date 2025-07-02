@@ -6,6 +6,7 @@ const SQLiteStore = require('./sqliteStore');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const csurf = require('csurf');
+const totp = require('./totp');
 const app = express();
 
 // Use a higher bcrypt work factor for stronger password hashing.
@@ -94,7 +95,7 @@ app.post('/api/register', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, token } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
   }
@@ -106,6 +107,11 @@ app.post('/api/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(400).json({ error: 'Invalid credentials' });
+    }
+    if (user.twofaSecret) {
+      if (!totp.verifyToken(token, user.twofaSecret)) {
+        return res.status(400).json({ error: 'Invalid 2FA token' });
+      }
     }
     req.session.userId = user.id;
     res.json({ id: user.id, username: user.username });
@@ -119,6 +125,27 @@ app.post('/api/logout', (req, res) => {
   req.session.destroy(() => {
     res.json({ ok: true });
   });
+});
+
+app.post('/api/enable-2fa', requireAuth, async (req, res) => {
+  try {
+    const secret = totp.generateSecret();
+    await db.setUserTwoFactorSecret(req.session.userId, secret);
+    res.json({ secret });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to enable 2FA' });
+  }
+});
+
+app.post('/api/disable-2fa', requireAuth, async (req, res) => {
+  try {
+    await db.setUserTwoFactorSecret(req.session.userId, null);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to disable 2FA' });
+  }
 });
 
 app.post('/api/request-password-reset', async (req, res) => {

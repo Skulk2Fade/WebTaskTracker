@@ -9,7 +9,8 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
+    password TEXT NOT NULL,
+    twofaSecret TEXT
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS tasks (
@@ -68,6 +69,13 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'repeatInterval')) {
       db.run('ALTER TABLE tasks ADD COLUMN repeatInterval TEXT');
+    }
+  });
+
+  db.all("PRAGMA table_info(users)", (err, cols) => {
+    if (err) return;
+    if (!cols.some(c => c.name === 'twofaSecret')) {
+      db.run('ALTER TABLE users ADD COLUMN twofaSecret TEXT');
     }
   });
 });
@@ -402,14 +410,14 @@ function assignTask(id, assignedTo, ownerId) {
   });
 }
 
-function createUser({ username, password }) {
+function createUser({ username, password, twofaSecret = null }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password) VALUES (?, ?)`,
-      [username, password],
+      `INSERT INTO users (username, password, twofaSecret) VALUES (?, ?, ?)`,
+      [username, password, twofaSecret],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, username, password });
+        resolve({ id: this.lastID, username, password, twofaSecret });
       }
     );
   });
@@ -510,6 +518,19 @@ function updateUserPassword(id, password) {
   });
 }
 
+function setUserTwoFactorSecret(id, secret) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET twofaSecret = ? WHERE id = ?`,
+      [secret, id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -532,5 +553,6 @@ module.exports = {
   createPasswordReset,
   getPasswordReset,
   markPasswordResetUsed,
-  updateUserPassword
+  updateUserPassword,
+  setUserTwoFactorSecret
 };
