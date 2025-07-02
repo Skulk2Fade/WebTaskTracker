@@ -23,11 +23,22 @@ test('register user and CRUD tasks', async () => {
   let res = await agent.get('/api/csrf-token');
   let token = res.body.csrfToken;
 
-  // register
+  // weak password should fail
   res = await agent
     .post('/api/register')
     .set('CSRF-Token', token)
     .send({ username: 'alice', password: 'pass' });
+  expect(res.status).toBe(400);
+
+  // new token
+  res = await agent.get('/api/csrf-token');
+  token = res.body.csrfToken;
+
+  // register with strong password
+  res = await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'alice', password: 'Passw0rd!' });
   expect(res.status).toBe(200);
   expect(res.body.username).toBe('alice');
 
@@ -35,11 +46,25 @@ test('register user and CRUD tasks', async () => {
   res = await agent.get('/api/csrf-token');
   token = res.body.csrfToken;
 
+  // invalid due date (past)
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Past', dueDate: '2000-01-01' });
+  expect(res.status).toBe(400);
+
+  // invalid due date format
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Bad', dueDate: '2020/01/01' });
+  expect(res.status).toBe(400);
+
   // create task
   res = await agent
     .post('/api/tasks')
     .set('CSRF-Token', token)
-    .send({ text: 'Test Task', priority: 'high' });
+    .send({ text: 'Test Task', priority: 'high', dueDate: '2099-12-31' });
   expect(res.status).toBe(201);
   const taskId = res.body.id;
 

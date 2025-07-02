@@ -34,6 +34,9 @@ and `password`. Log in via `/api/login` and log out with `/api/logout`. The
 frontend includes a simple form for these actions. Tasks are only accessible
 when logged in.
 
+Passwords must be at least 8 characters long and include upper and lower case
+letters and a number.
+
 ## Testing
 
 Automated tests are provided using Jest. Run them with:
