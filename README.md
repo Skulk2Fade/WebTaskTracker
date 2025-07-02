@@ -7,6 +7,7 @@ You can also search your tasks by keyword using the search bar at the top of the
 
 Tasks can be assigned to another user using `POST /api/tasks/:id/assign` with a `username` in the request body. Assigned tasks will appear in that user's task list.
 You can also discuss tasks by adding comments using `POST /api/tasks/:taskId/comments` and view them with `GET /api/tasks/:taskId/comments`.
+Tasks may optionally repeat on a daily, weekly or monthly schedule by including a `repeatInterval` when creating them. Completing a repeating task automatically schedules the next occurrence.
 
 ## Installation
 

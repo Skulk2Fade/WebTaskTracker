@@ -160,6 +160,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   const dueDate = req.body.dueDate;
   const category = req.body.category;
   const assignedTo = req.body.assignedTo;
+  const repeatInterval = req.body.repeatInterval;
   let priority = req.body.priority || 'medium';
   priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
   if (!text) {
@@ -167,6 +168,14 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   }
   if (dueDate && !isValidFutureDate(dueDate)) {
     return res.status(400).json({ error: 'Invalid due date' });
+  }
+  if (
+    repeatInterval !== undefined &&
+    repeatInterval !== null &&
+    repeatInterval !== '' &&
+    !['daily', 'weekly', 'monthly'].includes(repeatInterval)
+  ) {
+    return res.status(400).json({ error: 'Invalid repeat interval' });
   }
   try {
     let assigneeId = assignedTo;
@@ -181,7 +190,8 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       category,
       done: false,
       userId: req.session.userId,
-      assignedTo: assigneeId
+      assignedTo: assigneeId,
+      repeatInterval
     });
     res.status(201).json(task);
   } catch (err) {
@@ -208,7 +218,7 @@ app.post('/api/tasks/:id/assign', requireAuth, async (req, res) => {
 
 app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { text, dueDate, priority, done, category } = req.body;
+  const { text, dueDate, priority, done, category, repeatInterval } = req.body;
   if (text !== undefined && !text.trim()) {
     return res.status(400).json({ error: 'Task text cannot be empty' });
   }
@@ -218,10 +228,50 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   if (dueDate !== undefined && dueDate !== null && dueDate !== '' && !isValidFutureDate(dueDate)) {
     return res.status(400).json({ error: 'Invalid due date' });
   }
+  if (
+    repeatInterval !== undefined &&
+    repeatInterval !== null &&
+    repeatInterval !== '' &&
+    !['daily', 'weekly', 'monthly'].includes(repeatInterval)
+  ) {
+    return res.status(400).json({ error: 'Invalid repeat interval' });
+  }
   try {
-    const updated = await db.updateTask(id, { text, dueDate, priority, done, category }, req.session.userId);
+    const oldTask = await db.getTask(id, req.session.userId);
+    const updated = await db.updateTask(
+      id,
+      { text, dueDate, priority, done, category, repeatInterval },
+      req.session.userId
+    );
     if (!updated) {
       return res.status(404).json({ error: 'Task not found' });
+    }
+    if (
+      oldTask &&
+      !oldTask.done &&
+      updated.done &&
+      updated.repeatInterval &&
+      updated.dueDate
+    ) {
+      const date = new Date(updated.dueDate + 'T00:00:00Z');
+      if (updated.repeatInterval === 'daily') {
+        date.setUTCDate(date.getUTCDate() + 1);
+      } else if (updated.repeatInterval === 'weekly') {
+        date.setUTCDate(date.getUTCDate() + 7);
+      } else if (updated.repeatInterval === 'monthly') {
+        date.setUTCMonth(date.getUTCMonth() + 1);
+      }
+      const nextDue = date.toISOString().slice(0, 10);
+      await db.createTask({
+        text: updated.text,
+        dueDate: nextDue,
+        priority: updated.priority,
+        category: updated.category,
+        done: false,
+        userId: updated.userId,
+        assignedTo: updated.assignedTo,
+        repeatInterval: updated.repeatInterval
+      });
     }
     res.json(updated);
   } catch (err) {

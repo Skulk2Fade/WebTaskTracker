@@ -181,3 +181,33 @@ test('assign task to another user', async () => {
   expect(res.body.length).toBe(1);
   expect(res.body[0].text).toBe('Shared Task');
 });
+
+test('recurring task creates next occurrence when completed', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'carol', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Repeat', dueDate: '2099-01-01', repeatInterval: 'daily' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+  expect(res.body.done).toBe(true);
+
+  res = await agent.get('/api/tasks?sort=dueDate');
+  expect(res.body.length).toBe(2);
+  const dates = res.body.map(t => t.dueDate).sort();
+  expect(dates).toContain('2099-01-01');
+  expect(dates).toContain('2099-01-02');
+});
