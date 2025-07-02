@@ -43,6 +43,16 @@ when logged in.
 Passwords must be at least 8 characters long and include upper and lower case
 letters and a number.
 
+## CSRF Tokens
+
+The application uses CSRF protection on all non-GET requests. Obtain a token
+from `/api/csrf-token` and send it in the `CSRF-Token` header whenever you make
+POST, PUT or DELETE requests.
+
+Changing the session (for example by registering, logging in or logging out)
+invalidates the previous token. Always fetch a fresh token from the same
+endpoint before sending another state-changing request.
+
 ## Testing
 
 Automated tests are provided using Jest. Run them with:
