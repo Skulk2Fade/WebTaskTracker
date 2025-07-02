@@ -1,0 +1,67 @@
+const request = require('supertest');
+const fs = require('fs');
+const path = require('path');
+
+const TEST_DB = path.join(__dirname, 'test.db');
+process.env.DB_FILE = TEST_DB;
+process.env.SESSION_SECRET = 'testsecret';
+
+let app;
+
+beforeAll(() => {
+  if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+  app = require('../server');
+});
+
+afterAll(() => {
+  if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+});
+
+test('register user and CRUD tasks', async () => {
+  const agent = request.agent(app);
+  // get csrf token
+  let res = await agent.get('/api/csrf-token');
+  let token = res.body.csrfToken;
+
+  // register
+  res = await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'alice', password: 'pass' });
+  expect(res.status).toBe(200);
+  expect(res.body.username).toBe('alice');
+
+  // new csrf token
+  res = await agent.get('/api/csrf-token');
+  token = res.body.csrfToken;
+
+  // create task
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Test Task', priority: 'high' });
+  expect(res.status).toBe(201);
+  const taskId = res.body.id;
+
+  // list tasks
+  res = await agent.get('/api/tasks');
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].text).toBe('Test Task');
+
+  // update task
+  res = await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+  expect(res.body.done).toBe(true);
+
+  // delete task
+  res = await agent
+    .delete(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token);
+  expect(res.status).toBe(200);
+
+  res = await agent.get('/api/tasks');
+  expect(res.body.length).toBe(0);
+});

@@ -5,7 +5,8 @@ const session = require('express-session');
 class SQLiteStore extends session.Store {
   constructor(options = {}) {
     super();
-    const dbFile = options.dbFile || path.join(__dirname, 'tasks.db');
+    const dbFile =
+      options.dbFile || process.env.DB_FILE || path.join(__dirname, 'tasks.db');
     this.db = new sqlite3.Database(dbFile);
     this.db.serialize(() => {
       this.db.run(`CREATE TABLE IF NOT EXISTS sessions (
