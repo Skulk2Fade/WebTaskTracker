@@ -7,6 +7,10 @@ const bcrypt = require('bcryptjs');
 const csurf = require('csurf');
 const app = express();
 
+// Use a higher bcrypt work factor for stronger password hashing.
+// Configurable via the BCRYPT_ROUNDS environment variable.
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
+
 app.use(express.json());
 
 function isValidFutureDate(str) {
@@ -68,7 +72,7 @@ app.post('/api/register', async (req, res) => {
     });
   }
   try {
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const user = await db.createUser({ username, password: hashed });
     req.session.userId = user.id;
     res.json({ id: user.id, username: user.username });
