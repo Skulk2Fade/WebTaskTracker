@@ -254,3 +254,51 @@ test('bulk update and delete', async () => {
   res = await agent.get('/api/tasks');
   expect(res.body.length).toBe(0);
 });
+
+test('export and import tasks as JSON and CSV', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'eve', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'T1' });
+
+  let res = await agent.get('/api/tasks/export?format=json');
+  expect(res.status).toBe(200);
+  expect(Array.isArray(res.body)).toBe(true);
+  expect(res.body.length).toBe(1);
+  const jsonData = res.body;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks/import')
+    .set('CSRF-Token', token)
+    .send(jsonData);
+  expect(res.status).toBe(201);
+
+  res = await agent.get('/api/tasks');
+  expect(res.body.length).toBe(2);
+
+  res = await agent.get('/api/tasks/export?format=csv');
+  expect(res.status).toBe(200);
+  expect(res.headers['content-type']).toMatch(/text\/csv/);
+  const csv = res.text;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks/import')
+    .set('CSRF-Token', token)
+    .set('Content-Type', 'text/csv')
+    .send(csv);
+  expect(res.status).toBe(201);
+
+  res = await agent.get('/api/tasks');
+  expect(res.body.length).toBe(4);
+});

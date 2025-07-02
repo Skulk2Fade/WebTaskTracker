@@ -65,3 +65,15 @@ Automated tests are provided using Jest. Run them with:
 ```bash
 npm test
 ```
+
+## Import/Export
+
+Export all of your tasks in JSON or CSV format using:
+
+```
+GET /api/tasks/export?format=json|csv
+```
+
+Import tasks by sending a POST request to `/api/tasks/import`. Send a JSON array
+of task objects or CSV data (set `Content-Type: text/csv`). Imported tasks are
+added to the currently authenticated user's list.

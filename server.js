@@ -12,6 +12,7 @@ const app = express();
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
 
 app.use(express.json());
+app.use(express.text({ type: ['text/csv', 'application/csv'] }));
 
 function isValidFutureDate(str) {
   if (str === undefined || str === null || str === '') return true;
@@ -142,6 +143,139 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load tasks' });
+  }
+});
+
+function escapeCsv(val) {
+  if (val === undefined || val === null) return '';
+  const str = String(val);
+  if (/[,"\n]/.test(str)) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+function toCsv(tasks) {
+  const header = [
+    'text',
+    'dueDate',
+    'priority',
+    'done',
+    'category',
+    'assignedTo',
+    'repeatInterval'
+  ].join(',');
+  const rows = tasks.map(t =>
+    [
+      escapeCsv(t.text),
+      escapeCsv(t.dueDate),
+      escapeCsv(t.priority),
+      escapeCsv(t.done ? 1 : 0),
+      escapeCsv(t.category),
+      escapeCsv(t.assignedTo),
+      escapeCsv(t.repeatInterval)
+    ].join(',')
+  );
+  return [header, ...rows].join('\n');
+}
+
+function parseCsvLine(line) {
+  const vals = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQ = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQ = true;
+      } else if (ch === ',') {
+        vals.push(cur);
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+  }
+  vals.push(cur);
+  return vals;
+}
+
+function fromCsv(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length === 0) return [];
+  const headers = parseCsvLine(lines[0]);
+  const tasks = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i]) continue;
+    const vals = parseCsvLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => {
+      obj[h] = vals[idx];
+    });
+    tasks.push(obj);
+  }
+  return tasks;
+}
+
+app.get('/api/tasks/export', requireAuth, async (req, res) => {
+  const format = req.query.format === 'csv' ? 'csv' : 'json';
+  try {
+    const tasks = await db.listTasks({ userId: req.session.userId });
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="tasks.csv"');
+      res.send(toCsv(tasks));
+    } else {
+      res.setHeader('Content-Disposition', 'attachment; filename="tasks.json"');
+      res.json(tasks);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to export tasks' });
+  }
+});
+
+app.post('/api/tasks/import', requireAuth, async (req, res) => {
+  const format = req.headers['content-type'] && req.headers['content-type'].includes('csv') ? 'csv' : 'json';
+  try {
+    let tasks = [];
+    if (format === 'csv') {
+      tasks = fromCsv(req.body || '');
+    } else if (Array.isArray(req.body)) {
+      tasks = req.body;
+    } else if (req.body && Array.isArray(req.body.tasks)) {
+      tasks = req.body.tasks;
+    }
+    const created = [];
+    for (const t of tasks) {
+      if (!t.text) continue;
+      const task = await db.createTask({
+        text: t.text,
+        dueDate: t.dueDate || null,
+        priority: ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium',
+        done: t.done === true || t.done === '1' || t.done === 'true',
+        userId: req.session.userId,
+        category: t.category || null,
+        assignedTo: t.assignedTo || null,
+        repeatInterval: t.repeatInterval || null
+      });
+      created.push(task);
+    }
+    res.status(201).json(created);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to import tasks' });
   }
 });
 
