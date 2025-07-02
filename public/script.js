@@ -14,6 +14,9 @@ async function fetchTasks(filters = {}) {
   if (filters.sort) {
     params.append('sort', filters.sort);
   }
+  if (filters.search && filters.search.trim() !== '') {
+    params.append('search', filters.search.trim());
+  }
   const query = params.toString();
   const res = await fetch('/api/tasks' + (query ? `?${query}` : ''));
   return await res.json();
@@ -118,8 +121,9 @@ async function loadTasks() {
   const status = document.getElementById('status-filter').value;
   const priorityFilter = document.getElementById('priority-filter').value;
   const categoryFilter = document.getElementById('category-filter').value;
+  const search = document.getElementById('search-input').value;
   const sort = document.getElementById('sort-select').value;
-  const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, sort });
+  const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, sort, search });
   renderTasks(tasks);
 }
 
@@ -153,6 +157,7 @@ document.getElementById('status-filter').onchange = loadTasks;
 document.getElementById('priority-filter').onchange = loadTasks;
 document.getElementById('category-filter').onchange = loadTasks;
 document.getElementById('sort-select').onchange = loadTasks;
+document.getElementById('search-input').addEventListener('input', loadTasks);
 
 async function handleLogin(event) {
   if (event) event.preventDefault();

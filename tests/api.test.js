@@ -80,6 +80,11 @@ test('register user and CRUD tasks', async () => {
   expect(res.status).toBe(200);
   expect(res.body.length).toBe(1);
 
+  // search by keyword
+  res = await agent.get('/api/tasks?search=Test');
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
+
   // update task
   res = await agent
     .put(`/api/tasks/${taskId}`)

@@ -33,7 +33,7 @@ db.serialize(() => {
   });
 });
 
-function listTasks({ priority, done, sort, userId, category } = {}) {
+function listTasks({ priority, done, sort, userId, category, search } = {}) {
   return new Promise((resolve, reject) => {
     let query = 'SELECT * FROM tasks';
     const where = [];
@@ -52,6 +52,11 @@ function listTasks({ priority, done, sort, userId, category } = {}) {
     if (category) {
       where.push('category = ?');
       params.push(category);
+    }
+
+    if (search) {
+      where.push('text LIKE ?');
+      params.push(`%${search}%`);
     }
 
     if (done === true || done === false) {

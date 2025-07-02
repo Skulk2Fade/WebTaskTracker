@@ -128,14 +128,15 @@ app.get('/api/me', async (req, res) => {
 
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { priority, done, sort, category } = req.query;
+  const { priority, done, sort, category, search } = req.query;
   try {
     const tasks = await db.listTasks({
       priority,
       done: done === 'true' ? true : done === 'false' ? false : undefined,
       sort,
       userId: req.session.userId,
-      category
+      category,
+      search
     });
     res.json(tasks);
   } catch (err) {
