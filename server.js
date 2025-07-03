@@ -547,6 +547,22 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   }
   try {
     const oldTask = await db.getTask(id, req.session.userId);
+    if (!oldTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    if (done === true) {
+      const subs = await db.listSubtasks(id, req.session.userId);
+      if (subs.some(s => !s.done)) {
+        return res.status(400).json({ error: 'Subtasks not completed' });
+      }
+      const deps = await db.listDependencies(id, req.session.userId);
+      for (const depId of deps) {
+        const dep = await db.getTask(depId, req.session.userId);
+        if (!dep || !dep.done) {
+          return res.status(400).json({ error: 'Dependencies not completed' });
+        }
+      }
+    }
     const updated = await db.updateTask(
       id,
       { text, dueDate, priority, done, category, repeatInterval },
@@ -707,6 +723,48 @@ app.delete('/api/subtasks/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete subtask' });
+  }
+});
+
+app.get('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  try {
+    const deps = await db.listDependencies(taskId, req.session.userId);
+    if (deps === null) return res.status(404).json({ error: 'Task not found' });
+    const tasks = await Promise.all(deps.map(id => db.getTask(id, req.session.userId)));
+    res.json(tasks.filter(t => t));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load dependencies' });
+  }
+});
+
+app.post('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const dependsOn = parseInt(req.body.dependsOn);
+  if (!dependsOn) {
+    return res.status(400).json({ error: 'dependsOn required' });
+  }
+  try {
+    const dep = await db.addDependency(taskId, dependsOn, req.session.userId);
+    if (!dep) return res.status(404).json({ error: 'Task not found' });
+    res.status(201).json(dep);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save dependency' });
+  }
+});
+
+app.delete('/api/tasks/:taskId/dependencies/:depId', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const depId = parseInt(req.params.depId);
+  try {
+    const dep = await db.removeDependency(taskId, depId, req.session.userId);
+    if (!dep) return res.status(404).json({ error: 'Task not found' });
+    res.json(dep);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete dependency' });
   }
 });
 

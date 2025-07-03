@@ -119,16 +119,16 @@ test('register user and CRUD tasks', async () => {
   expect(res.status).toBe(200);
   expect(res.body.length).toBe(1);
 
-  // update task
+  // update subtask
   res = await agent
-    .put(`/api/tasks/${taskId}`)
+    .put(`/api/subtasks/${subId}`)
     .set('CSRF-Token', token)
     .send({ done: true });
   expect(res.body.done).toBe(true);
 
-  // update subtask
+  // update task
   res = await agent
-    .put(`/api/subtasks/${subId}`)
+    .put(`/api/tasks/${taskId}`)
     .set('CSRF-Token', token)
     .send({ done: true });
   expect(res.body.done).toBe(true);
@@ -585,5 +585,55 @@ test('notification preferences disable emails', async () => {
 
   await bob.get('/api/reminders');
   expect(email.sentEmails.length).toBe(0);
+});
+
+test('task dependencies enforcement', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'deps', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'First' });
+  const firstId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Second' });
+  const secondId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${firstId}/dependencies`)
+    .set('CSRF-Token', token)
+    .send({ dependsOn: secondId });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .put(`/api/tasks/${firstId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+  expect(res.status).toBe(400);
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .put(`/api/tasks/${secondId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .put(`/api/tasks/${firstId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+  expect(res.body.done).toBe(true);
 });
 

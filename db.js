@@ -59,6 +59,14 @@ db.serialize(() => {
     FOREIGN KEY(commentId) REFERENCES comments(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS task_dependencies (
+    taskId INTEGER NOT NULL,
+    dependsOn INTEGER NOT NULL,
+    PRIMARY KEY(taskId, dependsOn),
+    FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY(dependsOn) REFERENCES tasks(id) ON DELETE CASCADE
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS password_resets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER NOT NULL,
@@ -190,7 +198,11 @@ function listTasks({
       if (err) return reject(err);
       if (!rows) return resolve([]);
       const tasksWithSub = await Promise.all(
-        rows.map(async r => ({ ...r, subtasks: await listSubtasks(r.id, userId) }))
+        rows.map(async r => ({
+          ...r,
+          subtasks: await listSubtasks(r.id, userId),
+          dependencies: await listDependencies(r.id, userId)
+        }))
       );
       resolve(tasksWithSub);
     });
@@ -329,6 +341,79 @@ function listSubtasks(taskId, userId) {
     db.all(sql, params, (err, rows) => {
       if (err) return reject(err);
       resolve(rows);
+    });
+  });
+}
+
+function listDependencies(taskId, userId) {
+  return new Promise((resolve, reject) => {
+    const checkParams = [taskId];
+    let checkSql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      checkSql += ' AND (userId = ? OR assignedTo = ?)';
+      checkParams.push(userId, userId);
+    }
+    db.get(checkSql, checkParams, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.all(
+        'SELECT dependsOn FROM task_dependencies WHERE taskId = ?',
+        [taskId],
+        (err2, rows) => {
+          if (err2) return reject(err2);
+          resolve(rows.map(r => r.dependsOn));
+        }
+      );
+    });
+  });
+}
+
+function addDependency(taskId, dependsOn, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.get('SELECT id FROM tasks WHERE id = ?', [dependsOn], (err2, row2) => {
+        if (err2) return reject(err2);
+        if (!row2) return resolve(null);
+        db.run(
+          'INSERT OR IGNORE INTO task_dependencies (taskId, dependsOn) VALUES (?, ?)',
+          [taskId, dependsOn],
+          function (err3) {
+            if (err3) return reject(err3);
+            resolve({ taskId, dependsOn });
+          }
+        );
+      });
+    });
+  });
+}
+
+function removeDependency(taskId, dependsOn, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.run(
+        'DELETE FROM task_dependencies WHERE taskId = ? AND dependsOn = ?',
+        [taskId, dependsOn],
+        function (err2) {
+          if (err2) return reject(err2);
+          resolve({ taskId, dependsOn });
+        }
+      );
     });
   });
 }
@@ -827,6 +912,9 @@ module.exports = {
   listTaskAttachments,
   listCommentAttachments,
   getAttachment,
+  listDependencies,
+  addDependency,
+  removeDependency,
   assignTask,
   createUser,
   getUserByUsername,
