@@ -24,6 +24,7 @@ db.serialize(() => {
     category TEXT,
     assignedTo INTEGER,
     reminderSent INTEGER NOT NULL DEFAULT 0,
+    lastReminderDate TEXT,
     repeatInterval TEXT
   )`);
 
@@ -89,6 +90,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'reminderSent')) {
       db.run('ALTER TABLE tasks ADD COLUMN reminderSent INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!cols.some(c => c.name === 'lastReminderDate')) {
+      db.run('ALTER TABLE tasks ADD COLUMN lastReminderDate TEXT');
     }
     if (!cols.some(c => c.name === 'repeatInterval')) {
       db.run('ALTER TABLE tasks ADD COLUMN repeatInterval TEXT');
@@ -162,11 +166,11 @@ function listTasks({ priority, done, sort, userId, category, search } = {}) {
 function createTask({ text, dueDate, priority = 'medium', done = false, userId, category, assignedTo, repeatInterval }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO tasks (text, dueDate, priority, done, userId, category, assignedTo, reminderSent, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      `INSERT INTO tasks (text, dueDate, priority, done, userId, category, assignedTo, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
       [text, dueDate, priority, done ? 1 : 0, userId, category, assignedTo, repeatInterval],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category, assignedTo, repeatInterval });
+        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category, assignedTo, repeatInterval, lastReminderDate: null });
       }
     );
   });
@@ -199,6 +203,7 @@ function updateTask(id, fields, userId) {
       updates.push('dueDate = ?');
       params.push(fields.dueDate);
       updates.push('reminderSent = 0');
+      updates.push('lastReminderDate = NULL');
     }
     if (fields.priority !== undefined) {
       updates.push('priority = ?');
@@ -217,6 +222,7 @@ function updateTask(id, fields, userId) {
       params.push(fields.done ? 1 : 0);
       if (!fields.done) {
         updates.push('reminderSent = 0');
+        updates.push('lastReminderDate = NULL');
       }
     }
     if (!updates.length) {
@@ -598,19 +604,19 @@ function getUserById(id) {
 function getDueSoonTasks(userId) {
   return new Promise((resolve, reject) => {
     const today = new Date();
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    const limit = tomorrow.toISOString().slice(0, 10);
-    const params = [limit, userId, userId];
+    today.setUTCHours(0, 0, 0, 0);
+    const limit = today.toISOString().slice(0, 10);
+    const params = [limit, userId, userId, limit];
     const sql =
-      'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND dueDate <= ? AND done = 0 AND (userId = ? OR assignedTo = ?) AND reminderSent = 0';
+      'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND dueDate <= ? AND done = 0 AND (userId = ? OR assignedTo = ?) AND (lastReminderDate IS NULL OR lastReminderDate < ?)';
     db.all(sql, params, (err, rows) => {
       if (err) return reject(err);
       if (!rows || rows.length === 0) return resolve([]);
       const ids = rows.map(r => r.id);
       const placeholders = ids.map(() => '?').join(',');
       db.run(
-        `UPDATE tasks SET reminderSent = 1 WHERE id IN (${placeholders})`,
-        ids,
+        `UPDATE tasks SET lastReminderDate = ? WHERE id IN (${placeholders})`,
+        [limit, ...ids],
         err2 => {
           if (err2) return reject(err2);
           resolve(rows);
