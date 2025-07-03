@@ -444,6 +444,12 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       assignedTo: assigneeId,
       repeatInterval
     });
+    await db.createHistory({
+      taskId: task.id,
+      userId: req.session.userId,
+      action: 'created',
+      details: null
+    });
     res.status(201).json(task);
   } catch (err) {
     console.error(err);
@@ -465,6 +471,12 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
       'Task Assigned',
       `You have been assigned the task "${updated.text}"`
     );
+    await db.createHistory({
+      taskId: updated.id,
+      userId: req.session.userId,
+      action: 'assigned',
+      details: user.username
+    });
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -502,6 +514,12 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     if (!updated) {
       return res.status(404).json({ error: 'Task not found' });
     }
+    await db.createHistory({
+      taskId: updated.id,
+      userId: req.session.userId,
+      action: 'updated',
+      details: null
+    });
     if (
       oldTask &&
       !oldTask.done &&
@@ -671,6 +689,12 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
   try {
     const comment = await db.createComment(taskId, text, req.session.userId);
     if (!comment) return res.status(404).json({ error: 'Task not found' });
+    await db.createHistory({
+      taskId: taskId,
+      userId: req.session.userId,
+      action: 'commented',
+      details: text
+    });
     const task = await db.getTask(taskId);
     if (task) {
       const recipients = new Set();
@@ -706,6 +730,21 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
+app.get('/api/tasks/:id/history', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const task = await db.getTask(id, req.session.userId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    const events = await db.listHistory(id, req.session.userId);
+    res.json(events);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load history' });
   }
 });
 

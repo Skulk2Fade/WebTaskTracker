@@ -54,6 +54,17 @@ db.serialize(() => {
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS task_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskId INTEGER NOT NULL,
+    userId INTEGER,
+    action TEXT NOT NULL,
+    details TEXT,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
     if (err) return;
     if (!cols.some(c => c.name === 'userId')) {
@@ -481,6 +492,38 @@ function getDueSoonTasks(userId) {
   });
 }
 
+function createHistory({ taskId, userId, action, details }) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO task_history (taskId, userId, action, details) VALUES (?, ?, ?, ?)`,
+      [taskId, userId, action, details],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID, taskId, userId, action, details });
+      }
+    );
+  });
+}
+
+function listHistory(taskId, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql =
+      'SELECT task_history.*, users.username FROM task_history ' +
+      'JOIN tasks ON tasks.id = task_history.taskId ' +
+      'LEFT JOIN users ON users.id = task_history.userId WHERE task_history.taskId = ?';
+    if (userId !== undefined) {
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    sql += ' ORDER BY task_history.createdAt';
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
 function createPasswordReset({ userId, token, expiresAt }) {
   return new Promise((resolve, reject) => {
     db.run(
@@ -579,5 +622,7 @@ module.exports = {
   markPasswordResetUsed,
   updateUserPassword,
   setUserTwoFactorSecret,
-  countUsers
+  countUsers,
+  createHistory,
+  listHistory
 };
