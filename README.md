@@ -116,6 +116,29 @@ PUT /api/preferences
 { "emailReminders": false, "emailNotifications": true }
 ```
 
+## Groups
+
+Create a team with:
+
+```
+POST /api/groups
+{ "name": "Team A" }
+```
+
+Join an existing group:
+
+```
+POST /api/groups/:id/join
+```
+
+List your groups:
+
+```
+GET /api/groups
+```
+
+When creating a task you can specify `groupId` so it is shared with all group members.
+
 ## Attachments
 
 You can attach small files to tasks or comments by sending base64 encoded

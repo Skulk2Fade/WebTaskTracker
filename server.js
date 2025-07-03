@@ -265,6 +265,40 @@ app.put('/api/preferences', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/groups', requireAuth, async (req, res) => {
+  const name = req.body.name;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  try {
+    const group = await db.createGroup(name);
+    await db.addUserToGroup(group.id, req.session.userId);
+    res.status(201).json(group);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create group' });
+  }
+});
+
+app.post('/api/groups/:id/join', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    await db.addUserToGroup(id, req.session.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to join group' });
+  }
+});
+
+app.get('/api/groups', requireAuth, async (req, res) => {
+  try {
+    const groups = await db.listUserGroups(req.session.userId);
+    res.json(groups);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load groups' });
+  }
+});
+
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
   const { priority, done, sort, category, categories, search, startDate, endDate } = req.query;
@@ -450,6 +484,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   const dueDate = req.body.dueDate;
   const category = req.body.category;
   const assignedTo = req.body.assignedTo;
+  const groupId = req.body.groupId;
   const repeatInterval = req.body.repeatInterval;
   let priority = req.body.priority || 'medium';
   priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
@@ -473,6 +508,12 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       const user = await db.getUserById(assigneeId);
       if (!user) return res.status(400).json({ error: 'Assigned user not found' });
     }
+    if (groupId !== undefined && groupId !== null) {
+      const groups = await db.listUserGroups(req.session.userId);
+      if (!groups.some(g => g.id === groupId)) {
+        return res.status(400).json({ error: 'Invalid group' });
+      }
+    }
     const task = await db.createTask({
       text,
       dueDate,
@@ -481,6 +522,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       done: false,
       userId: req.session.userId,
       assignedTo: assigneeId,
+      groupId,
       repeatInterval
     });
     await db.createHistory({
