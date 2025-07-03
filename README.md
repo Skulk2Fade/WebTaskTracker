@@ -93,3 +93,17 @@ GET /api/tasks/export?format=json|csv
 Import tasks by sending a POST request to `/api/tasks/import`. Send a JSON array
 of task objects or CSV data (set `Content-Type: text/csv`). Imported tasks are
 added to the currently authenticated user's list.
+
+## Attachments
+
+You can attach small files to tasks or comments by sending base64 encoded
+content.
+
+```
+POST /api/tasks/:taskId/attachments
+{ "filename": "info.txt", "mimeType": "text/plain", "content": "base64data" }
+
+GET /api/tasks/:taskId/attachments
+GET /api/comments/:commentId/attachments
+GET /api/attachments/:id
+```
