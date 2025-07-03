@@ -149,6 +149,47 @@ test('register user and CRUD tasks', async () => {
   expect(res.body.length).toBe(0);
 });
 
+test('advanced filtering', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'filter', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'A', dueDate: '2099-01-02', category: 'work' });
+  const id1 = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'B', dueDate: '2099-01-05', category: 'home' });
+  const id2 = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${id2}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'keyword' });
+
+  res = await agent.get('/api/tasks?startDate=2099-01-01&endDate=2099-01-03');
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].id).toBe(id1);
+
+  res = await agent.get('/api/tasks?categories=work,home');
+  expect(res.body.length).toBe(2);
+
+  res = await agent.get('/api/tasks?search=keyword');
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].id).toBe(id2);
+});
+
 test('assign task to another user', async () => {
   const alice = request.agent(app);
   const bob = request.agent(app);
