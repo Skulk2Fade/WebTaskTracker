@@ -663,3 +663,38 @@ test('tasks endpoint supports pagination', async () => {
   expect(res.body.length).toBe(1);
 });
 
+test('admin endpoints require admin role', async () => {
+  const adminAgent = request.agent(app);
+  let token = (await adminAgent.get('/api/csrf-token')).body.csrfToken;
+  await adminAgent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'admin', password: 'Passw0rd!' });
+
+  const userAgent = request.agent(app);
+  token = (await userAgent.get('/api/csrf-token')).body.csrfToken;
+  await userAgent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'user', password: 'Passw0rd!' });
+
+  token = (await userAgent.get('/api/csrf-token')).body.csrfToken;
+  await userAgent
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'user', password: 'Passw0rd!' });
+
+  let res = await userAgent.get('/api/admin/stats');
+  expect(res.status).toBe(403);
+
+  token = (await adminAgent.get('/api/csrf-token')).body.csrfToken;
+  await adminAgent
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'admin', password: 'Passw0rd!' });
+
+  res = await adminAgent.get('/api/admin/stats');
+  expect(res.status).toBe(200);
+  expect(res.body.users).toBeDefined();
+});
+
