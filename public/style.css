@@ -87,3 +87,27 @@ label {
     margin: 4px 0;
   }
 }
+
+#calendar {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+#calendar th, #calendar td {
+  border: 1px solid #ccc;
+  vertical-align: top;
+  padding: 4px;
+  height: 80px;
+  width: 14%;
+}
+#calendar th {
+  background: #eee;
+}
+#calendar td ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+#calendar-controls {
+  margin-bottom: 10px;
+}
