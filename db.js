@@ -152,7 +152,9 @@ function listTasks({
   categories,
   search,
   startDate,
-  endDate
+  endDate,
+  limit,
+  offset
 } = {}) {
   return new Promise((resolve, reject) => {
     let query =
@@ -209,6 +211,11 @@ function listTasks({
     } else if (sort === 'priority') {
       query +=
         " ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END";
+    }
+
+    if (limit !== undefined) {
+      query += ' LIMIT ? OFFSET ?';
+      params.push(limit, offset || 0);
     }
 
     db.all(query, params, async (err, rows) => {

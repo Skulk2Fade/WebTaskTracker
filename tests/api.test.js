@@ -637,3 +637,29 @@ test('task dependencies enforcement', async () => {
   expect(res.body.done).toBe(true);
 });
 
+test('tasks endpoint supports pagination', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'pager', password: 'Passw0rd!' });
+
+  for (let i = 0; i < 3; i++) {
+    token = (await agent.get('/api/csrf-token')).body.csrfToken;
+    await agent
+      .post('/api/tasks')
+      .set('CSRF-Token', token)
+      .send({ text: `Task ${i}` });
+  }
+
+  let res = await agent.get('/api/tasks?page=1&pageSize=2');
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(2);
+
+  res = await agent.get('/api/tasks?page=2&pageSize=2');
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
+});
+

@@ -301,7 +301,9 @@ app.get('/api/groups', requireAuth, async (req, res) => {
 
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { priority, done, sort, category, categories, search, startDate, endDate } = req.query;
+  const { priority, done, sort, category, categories, search, startDate, endDate, page, pageSize } = req.query;
+  const pg = parseInt(page, 10) >= 1 ? parseInt(page, 10) : 1;
+  const size = parseInt(pageSize, 10) >= 1 ? parseInt(pageSize, 10) : 20;
   try {
     const tasks = await db.listTasks({
       priority,
@@ -317,7 +319,9 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
         : undefined,
       search,
       startDate,
-      endDate
+      endDate,
+      limit: size,
+      offset: (pg - 1) * size
     });
     res.json(tasks);
   } catch (err) {
