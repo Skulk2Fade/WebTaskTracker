@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+  <a href="index.html">Back to Tasks</a>
+  <div id="admin-content" style="display:none;">
+    <h2>System Statistics</h2>
+    <pre id="stats"></pre>
+    <h2>Users</h2>
+    <ul id="user-list"></ul>
+    <h2>Activity Logs</h2>
+    <ul id="logs"></ul>
+  </div>
+  <div id="not-admin" class="error" style="display:none;">Access denied</div>
+  <script src="admin.js"></script>
+</body>
+</html>

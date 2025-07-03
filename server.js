@@ -234,6 +234,50 @@ app.get('/api/me', async (req, res) => {
   res.json({ user: { id: user.id, username: user.username, role: user.role } });
 });
 
+// Admin endpoints
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await db.listUsers();
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load users' });
+  }
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const ok = await db.deleteUser(id);
+    if (!ok) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+app.get('/api/admin/logs', requireAdmin, async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 100;
+  try {
+    const logs = await db.listActivity(limit);
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load logs' });
+  }
+});
+
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    const stats = await db.getStats();
+    res.json(stats);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load stats' });
+  }
+});
+
 app.get('/api/preferences', requireAuth, async (req, res) => {
   try {
     const user = await db.getUserById(req.session.userId);

@@ -967,6 +967,59 @@ function countUsers() {
   });
 }
 
+function listUsers() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT id, username, role, emailReminders, emailNotifications FROM users`,
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows || []);
+      }
+    );
+  });
+}
+
+function deleteUser(id) {
+  return new Promise((resolve, reject) => {
+    db.run(`DELETE FROM users WHERE id = ?`, [id], function (err) {
+      if (err) return reject(err);
+      resolve(this.changes > 0);
+    });
+  });
+}
+
+function listActivity(limit = 100) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT task_history.*, tasks.text as taskText, users.username FROM task_history
+       LEFT JOIN tasks ON tasks.id = task_history.taskId
+       LEFT JOIN users ON users.id = task_history.userId
+       ORDER BY task_history.createdAt DESC
+       LIMIT ?`,
+      [limit],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows || []);
+      }
+    );
+  });
+}
+
+function getStats() {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT
+         (SELECT COUNT(*) FROM users) AS users,
+         (SELECT COUNT(*) FROM tasks) AS tasks,
+         (SELECT COUNT(*) FROM tasks WHERE done = 1) AS completed`,
+      (err, row) => {
+        if (err) return reject(err);
+        resolve(row);
+      }
+    );
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -1004,6 +1057,10 @@ module.exports = {
   addUserToGroup,
   listUserGroups,
   countUsers,
+  listUsers,
+  deleteUser,
+  listActivity,
+  getStats,
   createHistory,
   listHistory
 };

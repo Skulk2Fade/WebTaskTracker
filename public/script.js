@@ -48,6 +48,7 @@ async function checkAuth() {
   const taskForm = document.getElementById('task-form');
   const controls = document.getElementById('controls');
   const bulkControls = document.getElementById('bulk-controls');
+  const adminLink = document.getElementById('admin-link');
   const notify = document.getElementById('notifications');
   if (currentUser) {
     loginForm.style.display = 'none';
@@ -56,6 +57,8 @@ async function checkAuth() {
     taskForm.style.display = 'block';
     controls.style.display = 'block';
     bulkControls.style.display = 'block';
+    if (currentUser.role === 'admin') adminLink.style.display = 'inline';
+    else adminLink.style.display = 'none';
     loadTasks();
     loadReminders();
     if (reminderInterval) clearInterval(reminderInterval);
@@ -66,6 +69,7 @@ async function checkAuth() {
     taskForm.style.display = 'none';
     controls.style.display = 'none';
     bulkControls.style.display = 'none';
+    adminLink.style.display = 'none';
     document.getElementById('task-list').innerHTML = '';
     notify.style.display = 'none';
     if (reminderInterval) clearInterval(reminderInterval);
