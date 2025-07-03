@@ -157,9 +157,17 @@ test('assign task to another user', async () => {
     .set('CSRF-Token', token)
     .send({ username: 'alice', password: 'Passw0rd!' });
 
+  // register second user while logged in as admin alice
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  await alice
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'bob', password: 'Passw0rd!' });
+
+  // bob logs in
   token = (await bob.get('/api/csrf-token')).body.csrfToken;
   await bob
-    .post('/api/register')
+    .post('/api/login')
     .set('CSRF-Token', token)
     .send({ username: 'bob', password: 'Passw0rd!' });
 
