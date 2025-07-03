@@ -370,3 +370,59 @@ test('email notifications on assign, comment and reminder', async () => {
   expect(email.sentEmails.some(e => e.to === 'bob@example.com')).toBe(true);
 });
 
+test('task history records actions', async () => {
+  const admin = request.agent(app);
+  const user = request.agent(app);
+
+  let token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'henry', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'ida', password: 'Passw0rd!' });
+
+  token = (await user.get('/api/csrf-token')).body.csrfToken;
+  await user
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'ida', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  let res = await admin
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'History Task' });
+  const taskId = res.body.id;
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post(`/api/tasks/${taskId}/assign`)
+    .set('CSRF-Token', token)
+    .send({ username: 'ida' });
+
+  token = (await user.get('/api/csrf-token')).body.csrfToken;
+  await user
+    .post(`/api/tasks/${taskId}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'hello' });
+
+  token = (await user.get('/api/csrf-token')).body.csrfToken;
+  await user
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+
+  res = await user.get(`/api/tasks/${taskId}/history`);
+  expect(res.status).toBe(200);
+  const actions = res.body.map(e => e.action);
+  expect(actions).toContain('created');
+  expect(actions).toContain('assigned');
+  expect(actions).toContain('commented');
+  expect(actions).toContain('updated');
+});
+
