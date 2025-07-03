@@ -234,6 +234,37 @@ app.get('/api/me', async (req, res) => {
   res.json({ user: { id: user.id, username: user.username, role: user.role } });
 });
 
+app.get('/api/preferences', requireAuth, async (req, res) => {
+  try {
+    const user = await db.getUserById(req.session.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({
+      emailReminders: !!user.emailReminders,
+      emailNotifications: !!user.emailNotifications
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load preferences' });
+  }
+});
+
+app.put('/api/preferences', requireAuth, async (req, res) => {
+  const { emailReminders, emailNotifications } = req.body;
+  try {
+    const user = await db.updateUserPreferences(req.session.userId, {
+      emailReminders,
+      emailNotifications
+    });
+    res.json({
+      emailReminders: !!user.emailReminders,
+      emailNotifications: !!user.emailNotifications
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
+});
+
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
   const { priority, done, sort, category, categories, search, startDate, endDate } = req.query;
@@ -398,7 +429,7 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
   try {
     const tasks = await db.getDueSoonTasks(req.session.userId);
     const user = await db.getUserById(req.session.userId);
-    if (user) {
+    if (user && user.emailReminders) {
       for (const t of tasks) {
         await email.sendEmail(
           `${user.username}@example.com`,
@@ -474,11 +505,13 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
     if (!user) return res.status(400).json({ error: 'User not found' });
     const updated = await db.assignTask(id, user.id);
     if (!updated) return res.status(404).json({ error: 'Task not found' });
-    await email.sendEmail(
-      `${user.username}@example.com`,
-      'Task Assigned',
-      `You have been assigned the task "${updated.text}"`
-    );
+    if (user.emailNotifications) {
+      await email.sendEmail(
+        `${user.username}@example.com`,
+        'Task Assigned',
+        `You have been assigned the task "${updated.text}"`
+      );
+    }
     await db.createHistory({
       taskId: updated.id,
       userId: req.session.userId,
@@ -705,21 +738,23 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
     });
     const task = await db.getTask(taskId);
     if (task) {
-      const recipients = new Set();
+      const recipients = [];
       if (task.userId && task.userId !== req.session.userId) {
         const owner = await db.getUserById(task.userId);
-        if (owner) recipients.add(owner.username);
+        if (owner) recipients.push(owner);
       }
       if (task.assignedTo && task.assignedTo !== req.session.userId) {
         const assignee = await db.getUserById(task.assignedTo);
-        if (assignee) recipients.add(assignee.username);
+        if (assignee) recipients.push(assignee);
       }
-      for (const uname of recipients) {
-        await email.sendEmail(
-          `${uname}@example.com`,
-          'New Comment',
-          `A new comment was added to task "${task.text}": ${text}`
-        );
+      for (const user of recipients) {
+        if (user.emailNotifications) {
+          await email.sendEmail(
+            `${user.username}@example.com`,
+            'New Comment',
+            `A new comment was added to task "${task.text}": ${text}`
+          );
+        }
       }
     }
     res.status(201).json(comment);

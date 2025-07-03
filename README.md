@@ -100,6 +100,22 @@ Calling `GET /api/reminders` will send reminder emails for any tasks that are
 due or overdue. Tasks that remain incomplete will continue to trigger a reminder
 once per day until they are marked done.
 
+## Notification Preferences
+
+Each user can control whether they receive email reminders or notification
+emails for comments and task assignments. Retrieve your current settings with:
+
+```
+GET /api/preferences
+```
+
+Update them by sending:
+
+```
+PUT /api/preferences
+{ "emailReminders": false, "emailNotifications": true }
+```
+
 ## Attachments
 
 You can attach small files to tasks or comments by sending base64 encoded
