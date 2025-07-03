@@ -79,7 +79,8 @@ function renderCalendar(year, month) {
         if (byDate[dateStr]) {
           byDate[dateStr].forEach(t => {
             const li = document.createElement('li');
-            li.textContent = t.text;
+            const html = DOMPurify.sanitize(marked.parse(t.text));
+            li.innerHTML = html;
             if (t.done) li.classList.add('done');
             list.appendChild(li);
           });

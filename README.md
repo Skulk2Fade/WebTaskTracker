@@ -130,6 +130,19 @@ GET /api/comments/:commentId/attachments
 GET /api/attachments/:id
 ```
 
+## Markdown Formatting
+
+Task text and comment bodies support basic Markdown formatting. When viewing
+tasks or comments in the web interface, any Markdown syntax will be rendered
+as HTML for improved readability.
+
+```
+**bold**, *italic*, `code`
+```
+
+Markdown is not processed on the server; raw text is stored and sanitized in the
+browser before being inserted into the page.
+
 ## Calendar View
 
 Open `calendar.html` in the `public` directory to see tasks on a monthly calendar. Use the Prev and Next buttons to navigate between months.
