@@ -113,3 +113,7 @@ GET /api/tasks/:taskId/attachments
 GET /api/comments/:commentId/attachments
 GET /api/attachments/:id
 ```
+
+## Calendar View
+
+Open `calendar.html` in the `public` directory to see tasks on a monthly calendar. Use the Prev and Next buttons to navigate between months.
