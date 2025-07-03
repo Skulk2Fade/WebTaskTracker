@@ -9,6 +9,8 @@ Tasks can be assigned to another user using `POST /api/tasks/:id/assign` with a 
 You can also discuss tasks by adding comments using `POST /api/tasks/:taskId/comments` and view them with `GET /api/tasks/:taskId/comments`.
 Tasks may optionally repeat on a daily, weekly or monthly schedule by including a `repeatInterval` when creating them. Completing a repeating task automatically schedules the next occurrence.
 
+Users have roles of either `admin` or `member`. The first account created becomes the admin. Once an admin exists, only admins can create additional users, assign tasks or delete tasks.
+
 ## Installation
 
 Before starting the server, install dependencies:

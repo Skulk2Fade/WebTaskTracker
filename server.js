@@ -69,6 +69,21 @@ function requireAuth(req, res, next) {
   next();
 }
 
+async function requireAdmin(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    const user = await db.getUserById(req.session.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -80,10 +95,24 @@ app.post('/api/register', async (req, res) => {
     });
   }
   try {
+    const userCount = await db.countUsers();
+    if (userCount > 0) {
+      if (!req.session.userId) {
+        return res.status(403).json({ error: 'Only admins can create users' });
+      }
+      const current = await db.getUserById(req.session.userId);
+      if (!current || current.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can create users' });
+      }
+    }
+
     const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const user = await db.createUser({ username, password: hashed });
-    req.session.userId = user.id;
-    res.json({ id: user.id, username: user.username });
+    const role = userCount === 0 ? 'admin' : 'member';
+    const user = await db.createUser({ username, password: hashed, role });
+    if (userCount === 0) {
+      req.session.userId = user.id;
+    }
+    res.json({ id: user.id, username: user.username, role: user.role });
   } catch (err) {
     console.error(err);
     if (err.code === 'SQLITE_CONSTRAINT') {
@@ -114,7 +143,7 @@ app.post('/api/login', async (req, res) => {
       }
     }
     req.session.userId = user.id;
-    res.json({ id: user.id, username: user.username });
+    res.json({ id: user.id, username: user.username, role: user.role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to login' });
@@ -201,7 +230,7 @@ app.get('/api/me', async (req, res) => {
   if (!req.session.userId) return res.json({ user: null });
   const user = await db.getUserById(req.session.userId);
   if (!user) return res.json({ user: null });
-  res.json({ user: { id: user.id, username: user.username } });
+  res.json({ user: { id: user.id, username: user.username, role: user.role } });
 });
 
 
@@ -411,14 +440,14 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:id/assign', requireAuth, async (req, res) => {
+app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   const username = req.body.username;
   if (!username) return res.status(400).json({ error: 'Username required' });
   try {
     const user = await db.getUserByUsername(username);
     if (!user) return res.status(400).json({ error: 'User not found' });
-    const updated = await db.assignTask(id, user.id, req.session.userId);
+    const updated = await db.assignTask(id, user.id);
     if (!updated) return res.status(404).json({ error: 'Task not found' });
     res.json(updated);
   } catch (err) {
@@ -519,7 +548,7 @@ app.put('/api/tasks/bulk', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/bulk-delete', requireAuth, async (req, res) => {
+app.post('/api/tasks/bulk-delete', requireAuth, requireAdmin, async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'ids required' });
@@ -527,7 +556,7 @@ app.post('/api/tasks/bulk-delete', requireAuth, async (req, res) => {
   try {
     const results = [];
     for (const id of ids) {
-      const del = await db.deleteTask(id, req.session.userId);
+      const del = await db.deleteTask(id);
       if (del) results.push(del);
     }
     res.json(results);
@@ -537,10 +566,10 @@ app.post('/api/tasks/bulk-delete', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
+app.delete('/api/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
-    const deleted = await db.deleteTask(id, req.session.userId);
+    const deleted = await db.deleteTask(id);
     if (!deleted) {
       return res.status(404).json({ error: 'Task not found' });
     }

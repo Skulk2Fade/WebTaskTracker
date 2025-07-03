@@ -10,6 +10,7 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member',
     twofaSecret TEXT
   )`);
 
@@ -76,6 +77,9 @@ db.serialize(() => {
     if (err) return;
     if (!cols.some(c => c.name === 'twofaSecret')) {
       db.run('ALTER TABLE users ADD COLUMN twofaSecret TEXT');
+    }
+    if (!cols.some(c => c.name === 'role')) {
+      db.run("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
     }
   });
 });
@@ -212,12 +216,22 @@ function updateTask(id, fields, userId) {
 
 function deleteTask(id, userId) {
   return new Promise((resolve, reject) => {
-    if (userId === undefined) return resolve(null);
-    const params = [id, userId];
-    db.get('SELECT * FROM tasks WHERE id = ? AND userId = ?', params, (err, row) => {
+    const params = [id];
+    let sql = 'SELECT * FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND userId = ?';
+      params.push(userId);
+    }
+    db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       if (!row) return resolve(null);
-      db.run('DELETE FROM tasks WHERE id = ? AND userId = ?', params, function (err) {
+      const delParams = [id];
+      let delSql = 'DELETE FROM tasks WHERE id = ?';
+      if (userId !== undefined) {
+        delSql += ' AND userId = ?';
+        delParams.push(userId);
+      }
+      db.run(delSql, delParams, function (err) {
         if (err) return reject(err);
         resolve(row);
       });
@@ -397,27 +411,28 @@ function deleteSubtask(id, userId) {
 
 function assignTask(id, assignedTo, ownerId) {
   return new Promise((resolve, reject) => {
-    const params = [assignedTo, id, ownerId];
-    db.run(
-      'UPDATE tasks SET assignedTo = ? WHERE id = ? AND userId = ?',
-      params,
-      function (err) {
-        if (err) return reject(err);
-        if (this.changes === 0) return resolve(null);
-        getTask(id, ownerId).then(resolve).catch(reject);
-      }
-    );
+    const params = [assignedTo, id];
+    let sql = 'UPDATE tasks SET assignedTo = ? WHERE id = ?';
+    if (ownerId !== undefined) {
+      sql += ' AND userId = ?';
+      params.push(ownerId);
+    }
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      if (this.changes === 0) return resolve(null);
+      getTask(id, ownerId).then(resolve).catch(reject);
+    });
   });
 }
 
-function createUser({ username, password, twofaSecret = null }) {
+function createUser({ username, password, role = 'member', twofaSecret = null }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password, twofaSecret) VALUES (?, ?, ?)`,
-      [username, password, twofaSecret],
+      `INSERT INTO users (username, password, role, twofaSecret) VALUES (?, ?, ?, ?)`,
+      [username, password, role, twofaSecret],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, username, password, twofaSecret });
+        resolve({ id: this.lastID, username, password, role, twofaSecret });
       }
     );
   });
@@ -531,6 +546,15 @@ function setUserTwoFactorSecret(id, secret) {
   });
 }
 
+function countUsers() {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+      if (err) return reject(err);
+      resolve(row.count);
+    });
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -554,5 +578,6 @@ module.exports = {
   getPasswordReset,
   markPasswordResetUsed,
   updateUserPassword,
-  setUserTwoFactorSecret
+  setUserTwoFactorSecret,
+  countUsers
 };
