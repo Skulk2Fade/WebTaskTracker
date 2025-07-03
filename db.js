@@ -45,6 +45,17 @@ db.serialize(() => {
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskId INTEGER,
+    commentId INTEGER,
+    filename TEXT NOT NULL,
+    mimeType TEXT NOT NULL,
+    data BLOB NOT NULL,
+    FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY(commentId) REFERENCES comments(id) ON DELETE CASCADE
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS password_resets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER NOT NULL,
@@ -348,6 +359,123 @@ function deleteComment(id, userId) {
   });
 }
 
+function createTaskAttachment(taskId, { filename, mimeType, content }, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      const data = Buffer.from(content, 'base64');
+      db.run(
+        'INSERT INTO attachments (taskId, filename, mimeType, data) VALUES (?, ?, ?, ?)',
+        [taskId, filename, mimeType, data],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ id: this.lastID, taskId, filename, mimeType });
+        }
+      );
+    });
+  });
+}
+
+function createCommentAttachment(commentId, { filename, mimeType, content }, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [commentId];
+    let sql =
+      'SELECT comments.id, tasks.userId, tasks.assignedTo FROM comments JOIN tasks ON tasks.id = comments.taskId WHERE comments.id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      const data = Buffer.from(content, 'base64');
+      db.run(
+        'INSERT INTO attachments (commentId, filename, mimeType, data) VALUES (?, ?, ?, ?)',
+        [commentId, filename, mimeType, data],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ id: this.lastID, commentId, filename, mimeType });
+        }
+      );
+    });
+  });
+}
+
+function listTaskAttachments(taskId, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (userId = ? OR assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.all(
+        'SELECT id, filename, mimeType FROM attachments WHERE taskId = ?',
+        [taskId],
+        (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows);
+        }
+      );
+    });
+  });
+}
+
+function listCommentAttachments(commentId, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [commentId];
+    let sql =
+      'SELECT comments.id FROM comments JOIN tasks ON tasks.id = comments.taskId WHERE comments.id = ?';
+    if (userId !== undefined) {
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ?)';
+      params.push(userId, userId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.all(
+        'SELECT id, filename, mimeType FROM attachments WHERE commentId = ?',
+        [commentId],
+        (err, rows) => {
+          if (err) return reject(err);
+          resolve(rows);
+        }
+      );
+    });
+  });
+}
+
+function getAttachment(id, userId) {
+  return new Promise((resolve, reject) => {
+    const params = [id];
+    let sql =
+      'SELECT attachments.*, tasks.userId as taskOwner, tasks.assignedTo, comments.taskId as cTaskId FROM attachments ' +
+      'LEFT JOIN tasks ON tasks.id = attachments.taskId ' +
+      'LEFT JOIN comments ON comments.id = attachments.commentId WHERE attachments.id = ?';
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      if (userId !== undefined) {
+        const allowedTaskId = row.taskId || row.cTaskId;
+        const allowed =
+          (row.taskOwner === userId || row.assignedTo === userId) && allowedTaskId !== null;
+        if (!allowed) return resolve(null);
+      }
+      resolve(row);
+    });
+  });
+}
+
 function createSubtask(taskId, { text, done = false }, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -612,6 +740,11 @@ module.exports = {
   listComments,
   createComment,
   deleteComment,
+  createTaskAttachment,
+  createCommentAttachment,
+  listTaskAttachments,
+  listCommentAttachments,
+  getAttachment,
   assignTask,
   createUser,
   getUserByUsername,

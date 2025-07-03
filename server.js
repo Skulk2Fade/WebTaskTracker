@@ -733,6 +733,83 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  try {
+    const files = await db.listTaskAttachments(taskId, req.session.userId);
+    if (files === null) return res.status(404).json({ error: 'Task not found' });
+    res.json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load attachments' });
+  }
+});
+
+app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const { filename, mimeType, content } = req.body;
+  if (!filename || !mimeType || !content) {
+    return res.status(400).json({ error: 'filename, mimeType and content required' });
+  }
+  try {
+    const att = await db.createTaskAttachment(
+      taskId,
+      { filename, mimeType, content },
+      req.session.userId
+    );
+    if (!att) return res.status(404).json({ error: 'Task not found' });
+    res.status(201).json(att);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save attachment' });
+  }
+});
+
+app.get('/api/comments/:commentId/attachments', requireAuth, async (req, res) => {
+  const commentId = parseInt(req.params.commentId);
+  try {
+    const files = await db.listCommentAttachments(commentId, req.session.userId);
+    if (files === null) return res.status(404).json({ error: 'Comment not found' });
+    res.json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load attachments' });
+  }
+});
+
+app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) => {
+  const commentId = parseInt(req.params.commentId);
+  const { filename, mimeType, content } = req.body;
+  if (!filename || !mimeType || !content) {
+    return res.status(400).json({ error: 'filename, mimeType and content required' });
+  }
+  try {
+    const att = await db.createCommentAttachment(
+      commentId,
+      { filename, mimeType, content },
+      req.session.userId
+    );
+    if (!att) return res.status(404).json({ error: 'Comment not found' });
+    res.status(201).json(att);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save attachment' });
+  }
+});
+
+app.get('/api/attachments/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const att = await db.getAttachment(id, req.session.userId);
+    if (!att) return res.status(404).json({ error: 'Attachment not found' });
+    res.setHeader('Content-Type', att.mimeType);
+    res.send(att.data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load attachment' });
+  }
+});
+
 app.get('/api/tasks/:id/history', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   try {

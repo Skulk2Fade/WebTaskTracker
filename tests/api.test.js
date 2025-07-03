@@ -426,3 +426,59 @@ test('task history records actions', async () => {
   expect(actions).toContain('updated');
 });
 
+test('task and comment attachments', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'attach', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'With file' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/tasks/${taskId}/attachments`)
+    .set('CSRF-Token', token)
+    .send({
+      filename: 'a.txt',
+      mimeType: 'text/plain',
+      content: Buffer.from('hello').toString('base64')
+    });
+  expect(res.status).toBe(201);
+  const attachId = res.body.id;
+
+  res = await agent.get(`/api/tasks/${taskId}/attachments`);
+  expect(res.body.length).toBe(1);
+
+  res = await agent.get(`/api/attachments/${attachId}`);
+  expect(res.text).toBe('hello');
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/tasks/${taskId}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'c1' });
+  const commentId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/comments/${commentId}/attachments`)
+    .set('CSRF-Token', token)
+    .send({
+      filename: 'c.txt',
+      mimeType: 'text/plain',
+      content: Buffer.from('comment').toString('base64')
+    });
+  expect(res.status).toBe(201);
+
+  res = await agent.get(`/api/comments/${commentId}/attachments`);
+  expect(res.body.length).toBe(1);
+});
+
