@@ -2,6 +2,8 @@ const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
 
+const email = require('../email');
+
 const TEST_DB = path.join(__dirname, 'test.db');
 process.env.DB_FILE = TEST_DB;
 process.env.SESSION_SECRET = 'testsecret';
@@ -310,3 +312,61 @@ test('export and import tasks as JSON and CSV', async () => {
   res = await agent.get('/api/tasks');
   expect(res.body.length).toBe(4);
 });
+
+test('email notifications on assign, comment and reminder', async () => {
+  const alice = request.agent(app);
+  const bob = request.agent(app);
+
+  let token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  await alice
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'alice', password: 'Passw0rd!' });
+
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  await alice
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'bob', password: 'Passw0rd!' });
+
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'bob', password: 'Passw0rd!' });
+
+  email.clearEmails();
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  let res = await alice
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Notify Task' });
+  const taskId = res.body.id;
+
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  await alice
+    .post(`/api/tasks/${taskId}/assign`)
+    .set('CSRF-Token', token)
+    .send({ username: 'bob' });
+  expect(email.sentEmails.some(e => e.to === 'bob@example.com')).toBe(true);
+
+  email.clearEmails();
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .post(`/api/tasks/${taskId}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'hello' });
+  expect(email.sentEmails.some(e => e.to === 'alice@example.com')).toBe(true);
+
+  email.clearEmails();
+  const today = new Date().toISOString().slice(0, 10);
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Due Soon', dueDate: today });
+
+  await bob.get('/api/reminders');
+  expect(email.sentEmails.some(e => e.to === 'bob@example.com')).toBe(true);
+});
+

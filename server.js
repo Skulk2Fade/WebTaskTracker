@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const csurf = require('csurf');
 const totp = require('./totp');
+const email = require('./email');
 const app = express();
 
 // Use a higher bcrypt work factor for stronger password hashing.
@@ -388,6 +389,16 @@ app.post('/api/tasks/import', requireAuth, async (req, res) => {
 app.get('/api/reminders', requireAuth, async (req, res) => {
   try {
     const tasks = await db.getDueSoonTasks(req.session.userId);
+    const user = await db.getUserById(req.session.userId);
+    if (user) {
+      for (const t of tasks) {
+        await email.sendEmail(
+          `${user.username}@example.com`,
+          'Task Reminder',
+          `Task "${t.text}" is due on ${t.dueDate}`
+        );
+      }
+    }
     res.json(tasks);
   } catch (err) {
     console.error(err);
@@ -449,6 +460,11 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
     if (!user) return res.status(400).json({ error: 'User not found' });
     const updated = await db.assignTask(id, user.id);
     if (!updated) return res.status(404).json({ error: 'Task not found' });
+    await email.sendEmail(
+      `${user.username}@example.com`,
+      'Task Assigned',
+      `You have been assigned the task "${updated.text}"`
+    );
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -655,6 +671,25 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
   try {
     const comment = await db.createComment(taskId, text, req.session.userId);
     if (!comment) return res.status(404).json({ error: 'Task not found' });
+    const task = await db.getTask(taskId);
+    if (task) {
+      const recipients = new Set();
+      if (task.userId && task.userId !== req.session.userId) {
+        const owner = await db.getUserById(task.userId);
+        if (owner) recipients.add(owner.username);
+      }
+      if (task.assignedTo && task.assignedTo !== req.session.userId) {
+        const assignee = await db.getUserById(task.assignedTo);
+        if (assignee) recipients.add(assignee.username);
+      }
+      for (const uname of recipients) {
+        await email.sendEmail(
+          `${uname}@example.com`,
+          'New Comment',
+          `A new comment was added to task "${task.text}": ${text}`
+        );
+      }
+    }
     res.status(201).json(comment);
   } catch (err) {
     console.error(err);
