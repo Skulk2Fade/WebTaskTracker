@@ -80,7 +80,8 @@ function renderTasks(tasks) {
     li.dataset.id = task.id;
     const cat = task.category ? ` {${task.category}}` : '';
     const textSpan = document.createElement('span');
-    textSpan.textContent = `${task.text} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]${cat}`;
+    const taskHtml = DOMPurify.sanitize(marked.parse(task.text));
+    textSpan.innerHTML = `${taskHtml} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]${cat}`;
     li.appendChild(textSpan);
     li.classList.add(task.priority);
     if (task.done) {
@@ -196,7 +197,8 @@ function renderTasks(tasks) {
     fetchComments(task.id).then(comments => {
       comments.forEach(c => {
         const cLi = document.createElement('li');
-        cLi.textContent = `${c.username}: ${c.text}`;
+        const commentHtml = DOMPurify.sanitize(marked.parse(c.text));
+        cLi.innerHTML = `<strong>${c.username}:</strong> ${commentHtml}`;
         if (currentUser && c.userId === currentUser.id) {
           const cDel = document.createElement('button');
           cDel.textContent = 'Delete';
