@@ -94,6 +94,12 @@ Import tasks by sending a POST request to `/api/tasks/import`. Send a JSON array
 of task objects or CSV data (set `Content-Type: text/csv`). Imported tasks are
 added to the currently authenticated user's list.
 
+## Reminders
+
+Calling `GET /api/reminders` will send reminder emails for any tasks that are
+due or overdue. Tasks that remain incomplete will continue to trigger a reminder
+once per day until they are marked done.
+
 ## Attachments
 
 You can attach small files to tasks or comments by sending base64 encoded
