@@ -110,9 +110,20 @@ db.serialize(() => {
   });
 });
 
-function listTasks({ priority, done, sort, userId, category, search } = {}) {
+function listTasks({
+  priority,
+  done,
+  sort,
+  userId,
+  category,
+  categories,
+  search,
+  startDate,
+  endDate
+} = {}) {
   return new Promise((resolve, reject) => {
-    let query = 'SELECT * FROM tasks';
+    let query =
+      'SELECT DISTINCT tasks.* FROM tasks LEFT JOIN comments ON comments.taskId = tasks.id';
     const where = [];
     const params = [];
 
@@ -126,14 +137,29 @@ function listTasks({ priority, done, sort, userId, category, search } = {}) {
       params.push(priority);
     }
 
-    if (category) {
-      where.push('category = ?');
+    if (categories && categories.length) {
+      where.push(
+        'tasks.category IN (' + categories.map(() => '?').join(',') + ')'
+      );
+      params.push(...categories);
+    } else if (category) {
+      where.push('tasks.category = ?');
       params.push(category);
     }
 
+    if (startDate) {
+      where.push('tasks.dueDate >= ?');
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      where.push('tasks.dueDate <= ?');
+      params.push(endDate);
+    }
+
     if (search) {
-      where.push('text LIKE ?');
-      params.push(`%${search}%`);
+      where.push('(tasks.text LIKE ? OR comments.text LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
     }
 
     if (done === true || done === false) {

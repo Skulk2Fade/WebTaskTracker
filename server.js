@@ -236,7 +236,7 @@ app.get('/api/me', async (req, res) => {
 
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { priority, done, sort, category, search } = req.query;
+  const { priority, done, sort, category, categories, search, startDate, endDate } = req.query;
   try {
     const tasks = await db.listTasks({
       priority,
@@ -244,7 +244,15 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
       sort,
       userId: req.session.userId,
       category,
-      search
+      categories: categories
+        ? categories
+            .split(',')
+            .map(c => c.trim())
+            .filter(c => c)
+        : undefined,
+      search,
+      startDate,
+      endDate
     });
     res.json(tasks);
   } catch (err) {
