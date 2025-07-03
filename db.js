@@ -11,7 +11,9 @@ db.serialize(() => {
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'member',
-    twofaSecret TEXT
+    twofaSecret TEXT,
+    emailReminders INTEGER NOT NULL DEFAULT 1,
+    emailNotifications INTEGER NOT NULL DEFAULT 1
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS tasks (
@@ -106,6 +108,12 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'role')) {
       db.run("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
+    }
+    if (!cols.some(c => c.name === 'emailReminders')) {
+      db.run('ALTER TABLE users ADD COLUMN emailReminders INTEGER NOT NULL DEFAULT 1');
+    }
+    if (!cols.some(c => c.name === 'emailNotifications')) {
+      db.run('ALTER TABLE users ADD COLUMN emailNotifications INTEGER NOT NULL DEFAULT 1');
     }
   });
 });
@@ -596,14 +604,29 @@ function assignTask(id, assignedTo, ownerId) {
   });
 }
 
-function createUser({ username, password, role = 'member', twofaSecret = null }) {
+function createUser({
+  username,
+  password,
+  role = 'member',
+  twofaSecret = null,
+  emailReminders = 1,
+  emailNotifications = 1
+}) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password, role, twofaSecret) VALUES (?, ?, ?, ?)`,
-      [username, password, role, twofaSecret],
+      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications) VALUES (?, ?, ?, ?, ?, ?)`,
+      [username, password, role, twofaSecret, emailReminders, emailNotifications],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, username, password, role, twofaSecret });
+        resolve({
+          id: this.lastID,
+          username,
+          password,
+          role,
+          twofaSecret,
+          emailReminders,
+          emailNotifications
+        });
       }
     );
   });
@@ -749,6 +772,33 @@ function setUserTwoFactorSecret(id, secret) {
   });
 }
 
+function updateUserPreferences(id, { emailReminders, emailNotifications }) {
+  return new Promise((resolve, reject) => {
+    const fields = [];
+    const params = [];
+    if (emailReminders !== undefined) {
+      fields.push('emailReminders = ?');
+      params.push(emailReminders ? 1 : 0);
+    }
+    if (emailNotifications !== undefined) {
+      fields.push('emailNotifications = ?');
+      params.push(emailNotifications ? 1 : 0);
+    }
+    if (fields.length === 0) {
+      return getUserById(id).then(resolve).catch(reject);
+    }
+    params.push(id);
+    db.run(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
+      params,
+      function (err) {
+        if (err) return reject(err);
+        getUserById(id).then(resolve).catch(reject);
+      }
+    );
+  });
+}
+
 function countUsers() {
   return new Promise((resolve, reject) => {
     db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
@@ -787,6 +837,7 @@ module.exports = {
   markPasswordResetUsed,
   updateUserPassword,
   setUserTwoFactorSecret,
+  updateUserPreferences,
   countUsers,
   createHistory,
   listHistory
