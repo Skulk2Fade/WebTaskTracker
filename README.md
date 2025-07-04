@@ -174,3 +174,10 @@ browser before being inserted into the page.
 ## Calendar View
 
 Open `calendar.html` in the `public` directory to see tasks on a monthly calendar. Use the Prev and Next buttons to navigate between months.
+
+## Webhooks
+
+You can configure outgoing webhooks by setting the `WEBHOOK_URLS` environment
+variable to one or more comma separated URLs. The application will POST a JSON
+payload whenever a task is assigned, completed or commented on so you can
+integrate with services like Slack or Microsoft Teams.
