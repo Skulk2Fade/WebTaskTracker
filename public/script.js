@@ -29,7 +29,7 @@ async function fetchComments(taskId) {
 
 let currentUser = null;
 let csrfToken = '';
-let reminderInterval = null;
+let eventSource = null;
 const selectedTasks = new Set();
 
 async function updateCsrfToken() {
@@ -61,8 +61,22 @@ async function checkAuth() {
     else adminLink.style.display = 'none';
     loadTasks();
     loadReminders();
-    if (reminderInterval) clearInterval(reminderInterval);
-    reminderInterval = setInterval(loadReminders, 60000);
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource('/api/events');
+    eventSource.onmessage = e => {
+      const data = JSON.parse(e.data);
+      const container = document.getElementById('notifications');
+      const li = document.createElement('li');
+      if (data.type === 'task_assigned') {
+        li.textContent = `Assigned: "${data.text}"`;
+      } else if (data.type === 'task_commented') {
+        li.textContent = `New comment on task ${data.taskId}`;
+      } else if (data.type === 'task_due') {
+        li.textContent = `Reminder: "${data.text}" due ${data.dueDate}`;
+      }
+      container.style.display = 'block';
+      container.appendChild(li);
+    };
   } else {
     loginForm.style.display = 'block';
     userInfo.style.display = 'none';
@@ -72,7 +86,7 @@ async function checkAuth() {
     adminLink.style.display = 'none';
     document.getElementById('task-list').innerHTML = '';
     notify.style.display = 'none';
-    if (reminderInterval) clearInterval(reminderInterval);
+    if (eventSource) { eventSource.close(); eventSource = null; }
   }
 }
 

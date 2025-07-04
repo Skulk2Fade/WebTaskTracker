@@ -105,6 +105,13 @@ Calling `GET /api/reminders` will send reminder emails for any tasks that are
 due or overdue. Tasks that remain incomplete will continue to trigger a reminder
 once per day until they are marked done.
 
+## Real-time Notifications
+
+Connect to the `/api/events` endpoint with Server-Sent Events to receive
+instant updates when tasks are assigned to you, commented on or become due.
+Each event payload includes a `type` field of `task_assigned`, `task_commented`
+or `task_due` along with basic task information.
+
 ## Notification Preferences
 
 Each user can control whether they receive email reminders or notification
