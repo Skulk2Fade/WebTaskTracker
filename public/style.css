@@ -60,6 +60,11 @@ label {
 @media (max-width: 600px) {
   body {
     margin: 10px;
+    font-size: 18px;
+  }
+
+  h1 {
+    font-size: 1.4em;
   }
 
   #task-form,
@@ -85,6 +90,7 @@ label {
   #bulk-controls button {
     width: 100%;
     margin: 4px 0;
+    font-size: 16px;
   }
 }
 
