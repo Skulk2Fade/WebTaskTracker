@@ -13,7 +13,9 @@ db.serialize(() => {
     role TEXT NOT NULL DEFAULT 'member',
     twofaSecret TEXT,
     emailReminders INTEGER NOT NULL DEFAULT 1,
-    emailNotifications INTEGER NOT NULL DEFAULT 1
+    emailNotifications INTEGER NOT NULL DEFAULT 1,
+    googleId TEXT UNIQUE,
+    githubId TEXT UNIQUE
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS tasks (
@@ -139,6 +141,12 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'emailNotifications')) {
       db.run('ALTER TABLE users ADD COLUMN emailNotifications INTEGER NOT NULL DEFAULT 1');
+    }
+    if (!cols.some(c => c.name === 'googleId')) {
+      db.run('ALTER TABLE users ADD COLUMN googleId TEXT UNIQUE');
+    }
+    if (!cols.some(c => c.name === 'githubId')) {
+      db.run('ALTER TABLE users ADD COLUMN githubId TEXT UNIQUE');
     }
   });
 });
@@ -730,12 +738,23 @@ function createUser({
   role = 'member',
   twofaSecret = null,
   emailReminders = 1,
-  emailNotifications = 1
+  emailNotifications = 1,
+  googleId = null,
+  githubId = null
 }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications) VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, password, role, twofaSecret, emailReminders, emailNotifications],
+      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, googleId, githubId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        username,
+        password,
+        role,
+        twofaSecret,
+        emailReminders,
+        emailNotifications,
+        googleId,
+        githubId
+      ],
       function (err) {
         if (err) return reject(err);
         resolve({
@@ -745,7 +764,9 @@ function createUser({
           role,
           twofaSecret,
           emailReminders,
-          emailNotifications
+          emailNotifications,
+          googleId,
+          githubId
         });
       }
     );
@@ -767,6 +788,50 @@ function getUserById(id) {
       if (err) return reject(err);
       resolve(row || null);
     });
+  });
+}
+
+function getUserByGoogleId(id) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM users WHERE googleId = ?`, [id], (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function getUserByGithubId(id) {
+  return new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM users WHERE githubId = ?`, [id], (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function setUserGoogleId(id, googleId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET googleId = ? WHERE id = ?`,
+      [googleId, id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+  });
+}
+
+function setUserGithubId(id, githubId) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET githubId = ? WHERE id = ?`,
+      [githubId, id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
   });
 }
 
@@ -1062,5 +1127,9 @@ module.exports = {
   listActivity,
   getStats,
   createHistory,
-  listHistory
+  listHistory,
+  getUserByGoogleId,
+  getUserByGithubId,
+  setUserGoogleId,
+  setUserGithubId
 };

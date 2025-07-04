@@ -48,6 +48,10 @@ and `password`. Log in via `/api/login` and log out with `/api/logout`. The
 frontend includes a simple form for these actions. Tasks are only accessible
 when logged in.
 
+If Google or GitHub OAuth credentials are configured via environment variables
+(`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`),
+you can also log in using those providers from the login screen.
+
 Passwords must be at least 8 characters long and include upper and lower case
 letters and a number.
 
