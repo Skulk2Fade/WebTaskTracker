@@ -368,6 +368,10 @@ async function handleLogin(event) {
 
 document.getElementById('login-button').onclick = handleLogin;
 document.getElementById('login-form').addEventListener('submit', handleLogin);
+const googleBtn = document.getElementById('google-login');
+if (googleBtn) googleBtn.onclick = () => (window.location.href = '/auth/google');
+const githubBtn = document.getElementById('github-login');
+if (githubBtn) githubBtn.onclick = () => (window.location.href = '/auth/github');
 
 document.getElementById('register-button').onclick = async () => {
   const username = document.getElementById('username-input').value.trim();
