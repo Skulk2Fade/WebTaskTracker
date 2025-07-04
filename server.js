@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const session = require('express-session');
 const SQLiteStore = require('./sqliteStore');
@@ -75,6 +76,10 @@ setInterval(checkDueSoon, 60000);
 // Use a higher bcrypt work factor for stronger password hashing.
 // Configurable via the BCRYPT_ROUNDS environment variable.
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
+const ATTACHMENT_DIR = process.env.ATTACHMENT_DIR;
+if (ATTACHMENT_DIR) {
+  fs.mkdirSync(ATTACHMENT_DIR, { recursive: true });
+}
 
 app.use(express.json());
 app.use(express.text({ type: ['text/csv', 'application/csv'] }));
@@ -1251,6 +1256,36 @@ app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/tasks/:taskId/attachments/upload', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  if (!ATTACHMENT_DIR) return res.status(500).json({ error: 'Attachment storage not configured' });
+  const filename = req.headers['x-filename'];
+  const mimeType = req.headers['content-type'] || 'application/octet-stream';
+  if (!filename) return res.status(400).json({ error: 'X-Filename header required' });
+  const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
+  const stream = fs.createWriteStream(temp);
+  req.pipe(stream);
+  stream.on('finish', async () => {
+    try {
+      const att = await db.createTaskAttachment(taskId, { filename, mimeType, filePath: temp }, req.session.userId);
+      if (!att) {
+        fs.unlink(temp, () => {});
+        return res.status(404).json({ error: 'Task not found' });
+      }
+      res.status(201).json(att);
+    } catch (err) {
+      fs.unlink(temp, () => {});
+      console.error(err);
+      res.status(500).json({ error: 'Failed to save attachment' });
+    }
+  });
+  stream.on('error', err => {
+    fs.unlink(temp, () => {});
+    console.error(err);
+    res.status(500).json({ error: 'Failed to write file' });
+  });
+});
+
 app.get('/api/comments/:commentId/attachments', requireAuth, async (req, res) => {
   const commentId = parseInt(req.params.commentId);
   try {
@@ -1283,13 +1318,47 @@ app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) =
   }
 });
 
+app.post('/api/comments/:commentId/attachments/upload', requireAuth, async (req, res) => {
+  const commentId = parseInt(req.params.commentId);
+  if (!ATTACHMENT_DIR) return res.status(500).json({ error: 'Attachment storage not configured' });
+  const filename = req.headers['x-filename'];
+  const mimeType = req.headers['content-type'] || 'application/octet-stream';
+  if (!filename) return res.status(400).json({ error: 'X-Filename header required' });
+  const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
+  const stream = fs.createWriteStream(temp);
+  req.pipe(stream);
+  stream.on('finish', async () => {
+    try {
+      const att = await db.createCommentAttachment(commentId, { filename, mimeType, filePath: temp }, req.session.userId);
+      if (!att) {
+        fs.unlink(temp, () => {});
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+      res.status(201).json(att);
+    } catch (err) {
+      fs.unlink(temp, () => {});
+      console.error(err);
+      res.status(500).json({ error: 'Failed to save attachment' });
+    }
+  });
+  stream.on('error', err => {
+    fs.unlink(temp, () => {});
+    console.error(err);
+    res.status(500).json({ error: 'Failed to write file' });
+  });
+});
+
 app.get('/api/attachments/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
     const att = await db.getAttachment(id, req.session.userId);
     if (!att) return res.status(404).json({ error: 'Attachment not found' });
     res.setHeader('Content-Type', att.mimeType);
-    res.send(att.data);
+    if (att.filePath) {
+      res.sendFile(path.resolve(att.filePath));
+    } else {
+      res.send(att.data);
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load attachment' });

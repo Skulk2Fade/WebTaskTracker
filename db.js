@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
@@ -58,7 +59,8 @@ db.serialize(() => {
     commentId INTEGER,
     filename TEXT NOT NULL,
     mimeType TEXT NOT NULL,
-    data BLOB NOT NULL,
+    data BLOB,
+    filePath TEXT,
     FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY(commentId) REFERENCES comments(id) ON DELETE CASCADE
   )`);
@@ -341,15 +343,23 @@ function deleteTask(id, userId) {
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       if (!row) return resolve(null);
-      const delParams = [id];
-      let delSql = 'DELETE FROM tasks WHERE id = ?';
-      if (userId !== undefined) {
-        delSql += ' AND userId = ?';
-        delParams.push(userId);
-      }
-      db.run(delSql, delParams, function (err) {
+      db.all('SELECT filePath FROM attachments WHERE taskId = ? AND filePath IS NOT NULL', [id], (err, files) => {
         if (err) return reject(err);
-        resolve(row);
+        const delParams = [id];
+        let delSql = 'DELETE FROM tasks WHERE id = ?';
+        if (userId !== undefined) {
+          delSql += ' AND userId = ?';
+          delParams.push(userId);
+        }
+        db.run(delSql, delParams, function (err) {
+          if (err) return reject(err);
+          for (const f of files) {
+            if (f.filePath) {
+              fs.unlink(f.filePath, () => {});
+            }
+          }
+          resolve(row);
+        });
       });
     });
   });
@@ -517,16 +527,28 @@ function deleteComment(id, userId) {
       (err, row) => {
         if (err) return reject(err);
         if (!row) return resolve(null);
-        db.run('DELETE FROM comments WHERE id = ?', [id], function (err) {
-          if (err) return reject(err);
-          resolve(row);
-        });
+        db.all(
+          'SELECT filePath FROM attachments WHERE commentId = ? AND filePath IS NOT NULL',
+          [id],
+          (err, files) => {
+            if (err) return reject(err);
+            db.run('DELETE FROM comments WHERE id = ?', [id], function (err) {
+              if (err) return reject(err);
+              for (const f of files) {
+                if (f.filePath) {
+                  fs.unlink(f.filePath, () => {});
+                }
+              }
+              resolve(row);
+            });
+          }
+        );
       }
     );
   });
 }
 
-function createTaskAttachment(taskId, { filename, mimeType, content }, userId) {
+function createTaskAttachment(taskId, { filename, mimeType, content, filePath }, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
@@ -537,20 +559,26 @@ function createTaskAttachment(taskId, { filename, mimeType, content }, userId) {
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       if (!row) return resolve(null);
-      const data = Buffer.from(content, 'base64');
-      db.run(
-        'INSERT INTO attachments (taskId, filename, mimeType, data) VALUES (?, ?, ?, ?)',
-        [taskId, filename, mimeType, data],
-        function (err) {
-          if (err) return reject(err);
-          resolve({ id: this.lastID, taskId, filename, mimeType });
-        }
-      );
+      let query, args;
+      if (filePath) {
+        query =
+          'INSERT INTO attachments (taskId, filename, mimeType, filePath) VALUES (?, ?, ?, ?)';
+        args = [taskId, filename, mimeType, filePath];
+      } else {
+        const data = Buffer.from(content, 'base64');
+        query =
+          'INSERT INTO attachments (taskId, filename, mimeType, data) VALUES (?, ?, ?, ?)';
+        args = [taskId, filename, mimeType, data];
+      }
+      db.run(query, args, function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID, taskId, filename, mimeType });
+      });
     });
   });
 }
 
-function createCommentAttachment(commentId, { filename, mimeType, content }, userId) {
+function createCommentAttachment(commentId, { filename, mimeType, content, filePath }, userId) {
   return new Promise((resolve, reject) => {
     const params = [commentId];
     let sql =
@@ -562,15 +590,21 @@ function createCommentAttachment(commentId, { filename, mimeType, content }, use
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       if (!row) return resolve(null);
-      const data = Buffer.from(content, 'base64');
-      db.run(
-        'INSERT INTO attachments (commentId, filename, mimeType, data) VALUES (?, ?, ?, ?)',
-        [commentId, filename, mimeType, data],
-        function (err) {
-          if (err) return reject(err);
-          resolve({ id: this.lastID, commentId, filename, mimeType });
-        }
-      );
+      let query, args;
+      if (filePath) {
+        query =
+          'INSERT INTO attachments (commentId, filename, mimeType, filePath) VALUES (?, ?, ?, ?)';
+        args = [commentId, filename, mimeType, filePath];
+      } else {
+        const data = Buffer.from(content, 'base64');
+        query =
+          'INSERT INTO attachments (commentId, filename, mimeType, data) VALUES (?, ?, ?, ?)';
+        args = [commentId, filename, mimeType, data];
+      }
+      db.run(query, args, function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID, commentId, filename, mimeType });
+      });
     });
   });
 }
