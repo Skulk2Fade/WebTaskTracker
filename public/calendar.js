@@ -106,7 +106,8 @@ async function loadReminders() {
     container.style.display = 'block';
     reminders.forEach(r => {
       const li = document.createElement('li');
-      li.textContent = `Reminder: "${r.text}" due ${r.dueDate}`;
+      const due = r.dueTime ? `${r.dueDate} ${r.dueTime}` : r.dueDate;
+      li.textContent = `Reminder: "${r.text}" due ${due}`;
       container.appendChild(li);
     });
   } else {

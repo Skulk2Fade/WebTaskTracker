@@ -62,7 +62,7 @@ async function checkDueSoon() {
     try {
       const tasks = await db.getDueSoonTasks(uid);
       for (const t of tasks) {
-        sendSse(uid, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate });
+        sendSse(uid, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate, dueTime: t.dueTime });
       }
     } catch (err) {
       console.error(err);
@@ -87,6 +87,23 @@ function isValidFutureDate(str) {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   return date >= today;
+}
+
+function isValidTime(str) {
+  if (str === undefined || str === null || str === '') return true;
+  if (!/^\d{2}:\d{2}$/.test(str)) return false;
+  const [h, m] = str.split(':').map(Number);
+  return h >= 0 && h < 24 && m >= 0 && m < 60;
+}
+
+function isValidFutureDateTime(dateStr, timeStr) {
+  if (!isValidFutureDate(dateStr)) return false;
+  if (!isValidTime(timeStr)) return false;
+  if (!dateStr || !timeStr) return true;
+  const due = new Date(dateStr + 'T' + timeStr + ':00Z');
+  if (isNaN(due.getTime())) return false;
+  const now = new Date();
+  return due >= now;
 }
 
 function isStrongPassword(pw) {
@@ -577,6 +594,7 @@ function toCsv(tasks) {
   const header = [
     'text',
     'dueDate',
+    'dueTime',
     'priority',
     'done',
     'category',
@@ -587,6 +605,7 @@ function toCsv(tasks) {
     [
       escapeCsv(t.text),
       escapeCsv(t.dueDate),
+      escapeCsv(t.dueTime),
       escapeCsv(t.priority),
       escapeCsv(t.done ? 1 : 0),
       escapeCsv(t.category),
@@ -681,6 +700,7 @@ app.post('/api/tasks/import', requireAuth, async (req, res) => {
       const task = await db.createTask({
         text: t.text,
         dueDate: t.dueDate || null,
+        dueTime: t.dueTime || null,
         priority: ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium',
         done: t.done === true || t.done === '1' || t.done === 'true',
         userId: req.session.userId,
@@ -703,15 +723,16 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
     const user = await db.getUserById(req.session.userId);
     if (user && user.emailReminders) {
       for (const t of tasks) {
+        const dueStr = t.dueTime ? `${t.dueDate} ${t.dueTime}` : t.dueDate;
         await email.sendEmail(
           `${user.username}@example.com`,
           'Task Reminder',
-          `Task "${t.text}" is due on ${t.dueDate}`
+          `Task "${t.text}" is due on ${dueStr}`
         );
       }
     }
     for (const t of tasks) {
-      sendSse(req.session.userId, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate });
+      sendSse(req.session.userId, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate, dueTime: t.dueTime });
     }
     res.json(tasks);
   } catch (err) {
@@ -723,6 +744,7 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
 app.post('/api/tasks', requireAuth, async (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;
+  const dueTime = req.body.dueTime;
   const category = req.body.category;
   const assignedTo = req.body.assignedTo;
   const groupId = req.body.groupId;
@@ -732,8 +754,11 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   if (!text) {
     return res.status(400).json({ error: 'Task text is required' });
   }
-  if (dueDate && !isValidFutureDate(dueDate)) {
-    return res.status(400).json({ error: 'Invalid due date' });
+  if (dueTime && !dueDate) {
+    return res.status(400).json({ error: 'dueTime requires dueDate' });
+  }
+  if (dueDate && !isValidFutureDateTime(dueDate, dueTime)) {
+    return res.status(400).json({ error: 'Invalid due date/time' });
   }
   if (
     repeatInterval !== undefined &&
@@ -758,6 +783,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
     const task = await db.createTask({
       text,
       dueDate,
+      dueTime,
       priority,
       category,
       done: false,
@@ -816,15 +842,23 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
 
 app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { text, dueDate, priority, done, category, repeatInterval } = req.body;
+  const { text, dueDate, dueTime, priority, done, category, repeatInterval } = req.body;
   if (text !== undefined && !text.trim()) {
     return res.status(400).json({ error: 'Task text cannot be empty' });
   }
   if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
     return res.status(400).json({ error: 'Invalid priority value' });
   }
-  if (dueDate !== undefined && dueDate !== null && dueDate !== '' && !isValidFutureDate(dueDate)) {
-    return res.status(400).json({ error: 'Invalid due date' });
+  if (dueTime && !dueDate) {
+    return res.status(400).json({ error: 'dueTime requires dueDate' });
+  }
+  if (
+    dueDate !== undefined &&
+    dueDate !== null &&
+    dueDate !== '' &&
+    !isValidFutureDateTime(dueDate, dueTime)
+  ) {
+    return res.status(400).json({ error: 'Invalid due date/time' });
   }
   if (
     repeatInterval !== undefined &&
@@ -854,7 +888,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     }
     const updated = await db.updateTask(
       id,
-      { text, dueDate, priority, done, category, repeatInterval },
+      { text, dueDate, dueTime, priority, done, category, repeatInterval },
       req.session.userId
     );
     if (!updated) {
@@ -891,6 +925,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
       await db.createTask({
         text: updated.text,
         dueDate: nextDue,
+        dueTime: updated.dueTime,
         priority: updated.priority,
         category: updated.category,
         done: false,

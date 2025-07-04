@@ -65,11 +65,18 @@ test('register user and CRUD tasks', async () => {
     .send({ text: 'Bad', dueDate: '2020/01/01' });
   expect(res.status).toBe(400);
 
+  // invalid due time
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'BadTime', dueDate: '2099-01-01', dueTime: '25:00' });
+  expect(res.status).toBe(400);
+
   // create task
   res = await agent
     .post('/api/tasks')
     .set('CSRF-Token', token)
-    .send({ text: 'Test Task', priority: 'high', dueDate: '2099-12-31', category: 'work' });
+    .send({ text: 'Test Task', priority: 'high', dueDate: '2099-12-31', dueTime: '12:30', category: 'work' });
   expect(res.status).toBe(201);
   const taskId = res.body.id;
 
@@ -79,6 +86,7 @@ test('register user and CRUD tasks', async () => {
   expect(res.body.length).toBe(1);
   expect(res.body[0].text).toBe('Test Task');
   expect(res.body[0].category).toBe('work');
+  expect(res.body[0].dueTime).toBe('12:30');
 
   // create subtask
   res = await agent
