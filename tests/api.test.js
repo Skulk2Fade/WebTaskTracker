@@ -365,6 +365,28 @@ test('export and import tasks as JSON and CSV', async () => {
   expect(res.body.length).toBe(4);
 });
 
+test('ICS feed returns calendar data', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'ical', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'ICS Task', dueDate: '2099-12-31' });
+
+  const res = await agent.get('/api/tasks/ics');
+  expect(res.status).toBe(200);
+  expect(res.headers['content-type']).toMatch(/text\/calendar/);
+  expect(res.text).toMatch(/BEGIN:VCALENDAR/);
+  expect(res.text).toMatch(/SUMMARY:ICS Task/);
+});
+
 test('email notifications on assign, comment and reminder', async () => {
   const alice = request.agent(app);
   const bob = request.agent(app);

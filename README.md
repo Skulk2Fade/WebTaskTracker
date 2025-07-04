@@ -182,6 +182,17 @@ browser before being inserted into the page.
 
 Open `calendar.html` in the `public` directory to see tasks on a monthly calendar. Use the Prev and Next buttons to navigate between months.
 
+### Calendar Integrations
+
+Subscribe to your tasks in any calendar application using the iCalendar feed:
+
+```
+GET /api/tasks/ics
+```
+
+The endpoint returns a standard `.ics` file that can be imported into clients
+like Google Calendar so your tasks appear alongside other events.
+
 ## Webhooks
 
 You can configure outgoing webhooks by setting the `WEBHOOK_URLS` environment

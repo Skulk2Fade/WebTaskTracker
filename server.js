@@ -665,6 +665,27 @@ function fromCsv(text) {
   return tasks;
 }
 
+function toIcs(tasks) {
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//WebTaskTracker//EN'];
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  for (const t of tasks) {
+    lines.push('BEGIN:VTODO');
+    lines.push(`UID:${t.id}@webtasktracker`);
+    lines.push('DTSTAMP:' + stamp);
+    if (t.dueDate && t.dueTime) {
+      const dt = new Date(`${t.dueDate}T${t.dueTime}:00Z`);
+      const due = dt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      lines.push('DUE:' + due);
+    } else if (t.dueDate) {
+      lines.push('DUE;VALUE=DATE:' + t.dueDate.replace(/-/g, ''));
+    }
+    lines.push('SUMMARY:' + (t.text || '').replace(/\r?\n/g, ' '));
+    lines.push('END:VTODO');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
 app.get('/api/tasks/export', requireAuth, async (req, res) => {
   const format = req.query.format === 'csv' ? 'csv' : 'json';
   try {
@@ -677,6 +698,18 @@ app.get('/api/tasks/export', requireAuth, async (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename="tasks.json"');
       res.json(tasks);
     }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to export tasks' });
+  }
+});
+
+app.get('/api/tasks/ics', requireAuth, async (req, res) => {
+  try {
+    const tasks = await db.listTasks({ userId: req.session.userId });
+    res.setHeader('Content-Type', 'text/calendar');
+    res.setHeader('Content-Disposition', 'attachment; filename="tasks.ics"');
+    res.send(toIcs(tasks));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to export tasks' });
