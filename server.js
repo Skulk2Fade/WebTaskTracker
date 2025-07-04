@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const csurf = require('csurf');
 const totp = require('./totp');
 const email = require('./email');
+const webhooks = require('./webhooks');
 let passport;
 let GoogleStrategy;
 let GitHubStrategy;
@@ -747,6 +748,11 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
       action: 'assigned',
       details: user.username
     });
+    await webhooks.sendWebhook('task_assigned', {
+      taskId: updated.id,
+      text: updated.text,
+      assignedTo: user.username
+    });
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -806,6 +812,12 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
       action: 'updated',
       details: null
     });
+    if (oldTask && !oldTask.done && updated.done) {
+      await webhooks.sendWebhook('task_completed', {
+        taskId: updated.id,
+        text: updated.text
+      });
+    }
     if (
       oldTask &&
       !oldTask.done &&
@@ -1044,6 +1056,11 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
         }
       }
     }
+    await webhooks.sendWebhook('task_commented', {
+      taskId,
+      commentId: comment.id,
+      text
+    });
     res.status(201).json(comment);
   } catch (err) {
     console.error(err);

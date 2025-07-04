@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 const email = require('../email');
+const webhooks = require('../webhooks');
+
+process.env.WEBHOOK_URLS = 'http://example.com/hook';
 
 const TEST_DB = path.join(__dirname, 'test.db');
 process.env.DB_FILE = TEST_DB;
@@ -696,5 +699,59 @@ test('admin endpoints require admin role', async () => {
   res = await adminAgent.get('/api/admin/stats');
   expect(res.status).toBe(200);
   expect(res.body.users).toBeDefined();
+});
+
+test('webhooks triggered on task actions', async () => {
+  const admin = request.agent(app);
+  const user = request.agent(app);
+
+  let token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'hookadmin', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'hookuser', password: 'Passw0rd!' });
+
+  token = (await user.get('/api/csrf-token')).body.csrfToken;
+  await user
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'hookuser', password: 'Passw0rd!' });
+
+  webhooks.clearWebhooks();
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  let res = await admin
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Hook Task' });
+  const taskId = res.body.id;
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post(`/api/tasks/${taskId}/assign`)
+    .set('CSRF-Token', token)
+    .send({ username: 'hookuser' });
+  expect(webhooks.sentWebhooks.some(h => h.payload.event === 'task_assigned')).toBe(true);
+
+  webhooks.clearWebhooks();
+  token = (await user.get('/api/csrf-token')).body.csrfToken;
+  await user
+    .post(`/api/tasks/${taskId}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'hi' });
+  expect(webhooks.sentWebhooks.some(h => h.payload.event === 'task_commented')).toBe(true);
+
+  webhooks.clearWebhooks();
+  token = (await user.get('/api/csrf-token')).body.csrfToken;
+  await user
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+  expect(webhooks.sentWebhooks.some(h => h.payload.event === 'task_completed')).toBe(true);
 });
 
