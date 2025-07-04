@@ -729,6 +729,10 @@ test('admin endpoints require admin role', async () => {
   res = await adminAgent.get('/api/admin/stats');
   expect(res.status).toBe(200);
   expect(res.body.users).toBeDefined();
+
+  res = await adminAgent.get('/api/admin/reports');
+  expect(res.status).toBe(200);
+  expect(res.body.overdue).toBeDefined();
 });
 
 test('webhooks triggered on task actions', async () => {

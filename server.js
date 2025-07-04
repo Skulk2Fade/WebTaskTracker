@@ -485,6 +485,16 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/admin/reports', requireAdmin, async (req, res) => {
+  try {
+    const reports = await db.getReports();
+    res.json(reports);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load reports' });
+  }
+});
+
 app.get('/api/preferences', requireAuth, async (req, res) => {
   try {
     const user = await db.getUserById(req.session.userId);
@@ -934,6 +944,12 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
       details: null
     });
     if (oldTask && !oldTask.done && updated.done) {
+      await db.createHistory({
+        taskId: updated.id,
+        userId: req.session.userId,
+        action: 'completed',
+        details: null
+      });
       await webhooks.sendWebhook('task_completed', {
         taskId: updated.id,
         text: updated.text

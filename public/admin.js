@@ -14,6 +14,7 @@ async function init() {
   }
   document.getElementById('admin-content').style.display = 'block';
   loadStats();
+  loadReports();
   loadUsers();
   loadLogs();
 }
@@ -23,6 +24,14 @@ async function loadStats() {
   if (res.ok) {
     const stats = await res.json();
     document.getElementById('stats').textContent = JSON.stringify(stats, null, 2);
+  }
+}
+
+async function loadReports() {
+  const res = await fetch('/api/admin/reports');
+  if (res.ok) {
+    const reports = await res.json();
+    document.getElementById('reports').textContent = JSON.stringify(reports, null, 2);
   }
 }
 

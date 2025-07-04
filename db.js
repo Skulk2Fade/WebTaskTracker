@@ -1095,6 +1095,34 @@ function getStats() {
   });
 }
 
+function getReports() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT strftime('%Y-%W', createdAt) AS week, COUNT(*) AS count
+       FROM task_history
+       WHERE action = 'completed'
+       GROUP BY week
+       ORDER BY week DESC
+       LIMIT 4`,
+      (err, rows) => {
+        if (err) return reject(err);
+        const completedPerWeek = rows || [];
+        db.get(
+          `SELECT COUNT(*) AS overdue
+           FROM tasks
+           WHERE done = 0
+             AND dueDate IS NOT NULL
+             AND (dueDate < DATE('now') OR (dueDate = DATE('now') AND (dueTime IS NULL OR dueTime <= TIME('now'))))`,
+          (err2, row2) => {
+            if (err2) return reject(err2);
+            resolve({ completedPerWeek, overdue: row2.overdue });
+          }
+        );
+      }
+    );
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -1136,6 +1164,7 @@ module.exports = {
   deleteUser,
   listActivity,
   getStats,
+  getReports,
   createHistory,
   listHistory,
   getUserByGoogleId,
