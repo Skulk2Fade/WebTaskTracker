@@ -7,9 +7,9 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Task Tracker</h1>
+  <h1>Task Board</h1>
   <a href="calendar.html">Calendar View</a>
-  <a href="board.html">Board View</a>
+  <a href="index.html">List View</a>
   <a id="admin-link" href="admin.html" style="display:none;">Admin Dashboard</a>
   <ul id="notifications" style="display:none;"></ul>
     <div id="auth">
@@ -46,46 +46,18 @@
     </select>
     <button id="add-button">Add</button>
   </div>
-  <div id="controls">
-    <label for="status-filter">Show</label>
-    <select id="status-filter">
-      <option value="all">All</option>
-      <option value="active">Active</option>
-      <option value="completed">Completed</option>
-    </select>
-    <label for="priority-filter">Priority</label>
-    <select id="priority-filter">
-      <option value="all">All Priorities</option>
-      <option value="high">High</option>
-      <option value="medium">Medium</option>
-      <option value="low">Low</option>
-    </select>
-    <label for="category-filter">Category</label>
-    <input type="text" id="category-filter" placeholder="All Categories">
-    <label for="search-input">Search</label>
-    <input type="text" id="search-input" placeholder="Keyword">
-    <label for="sort-select">Sort</label>
-    <select id="sort-select">
-      <option value="">No Sorting</option>
-      <option value="dueDate">Sort by Due Date</option>
-      <option value="priority">Sort by Priority</option>
+  <div id="board-controls">
+    <label for="group-select">Group by</label>
+    <select id="group-select">
+      <option value="status" selected>Status</option>
+      <option value="category">Category</option>
     </select>
   </div>
-  <div id="bulk-controls" style="margin-bottom:10px;">
-    <button id="bulk-done">Mark Selected Done</button>
-    <button id="bulk-delete">Delete Selected</button>
-    <label for="bulk-priority">Set Priority</label>
-    <select id="bulk-priority">
-      <option value="high">High</option>
-      <option value="medium" selected>Medium</option>
-      <option value="low">Low</option>
-    </select>
-    <button id="bulk-priority-btn">Apply</button>
-  </div>
-  <ul id="task-list"></ul>
+  <div id="board"></div>
+
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
-  <script src="script.js"></script>
+  <script src="board.js"></script>
 </body>
 </html>
