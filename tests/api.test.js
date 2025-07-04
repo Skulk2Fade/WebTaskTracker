@@ -10,16 +10,20 @@ process.env.WEBHOOK_URLS = 'http://example.com/hook';
 const TEST_DB = path.join(__dirname, 'test.db');
 process.env.DB_FILE = TEST_DB;
 process.env.SESSION_SECRET = 'testsecret';
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+process.env.ATTACHMENT_DIR = UPLOAD_DIR;
 
 let app;
 
 beforeAll(() => {
   if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+  if (fs.existsSync(UPLOAD_DIR)) fs.rmSync(UPLOAD_DIR, { recursive: true });
   app = require('../server');
 });
 
 afterAll(() => {
   if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+  if (fs.existsSync(UPLOAD_DIR)) fs.rmSync(UPLOAD_DIR, { recursive: true });
 });
 
 test('register user and CRUD tasks', async () => {
@@ -554,6 +558,36 @@ test('task and comment attachments', async () => {
 
   res = await agent.get(`/api/comments/${commentId}/attachments`);
   expect(res.body.length).toBe(1);
+});
+
+test('streaming attachment upload', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'stream', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'stream' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/tasks/${taskId}/attachments/upload`)
+    .set('CSRF-Token', token)
+    .set('X-Filename', 'b.txt')
+    .set('Content-Type', 'application/octet-stream')
+    .send('world');
+  expect(res.status).toBe(201);
+  const attachId = res.body.id;
+
+  res = await agent.get(`/api/attachments/${attachId}`);
+  expect(res.text).toBe('world');
 });
 
 test('notification preferences disable emails', async () => {

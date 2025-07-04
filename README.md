@@ -153,17 +153,24 @@ When creating a task you can specify `groupId` so it is shared with all group me
 
 ## Attachments
 
-You can attach small files to tasks or comments by sending base64 encoded
-content.
+You can attach files to tasks or comments. By default the body should contain
+base64 encoded `content` which is stored directly in the database. If the
+`ATTACHMENT_DIR` environment variable is set, you can also stream raw file
+data to disk using the `/upload` endpoints.
 
 ```
 POST /api/tasks/:taskId/attachments
 { "filename": "info.txt", "mimeType": "text/plain", "content": "base64data" }
 
+POST /api/tasks/:taskId/attachments/upload  (binary body with X-Filename header)
+POST /api/comments/:commentId/attachments/upload  (binary body with X-Filename header)
+
 GET /api/tasks/:taskId/attachments
 GET /api/comments/:commentId/attachments
 GET /api/attachments/:id
 ```
+
+Streaming uploads require `ATTACHMENT_DIR` to point to a writable directory.
 
 ## Markdown Formatting
 
