@@ -72,7 +72,8 @@ async function checkAuth() {
       } else if (data.type === 'task_commented') {
         li.textContent = `New comment on task ${data.taskId}`;
       } else if (data.type === 'task_due') {
-        li.textContent = `Reminder: "${data.text}" due ${data.dueDate}`;
+        const due = data.dueTime ? `${data.dueDate} ${data.dueTime}` : data.dueDate;
+        li.textContent = `Reminder: "${data.text}" due ${due}`;
       }
       container.style.display = 'block';
       container.appendChild(li);
@@ -99,7 +100,8 @@ function renderTasks(tasks) {
     const cat = task.category ? ` {${task.category}}` : '';
     const textSpan = document.createElement('span');
     const taskHtml = DOMPurify.sanitize(marked.parse(task.text));
-    textSpan.innerHTML = `${taskHtml} (Due: ${task.dueDate || 'N/A'}) [${task.priority}]${cat}`;
+    const due = task.dueDate ? (task.dueTime ? `${task.dueDate} ${task.dueTime}` : task.dueDate) : 'N/A';
+    textSpan.innerHTML = `${taskHtml} (Due: ${due}) [${task.priority}]${cat}`;
     li.appendChild(textSpan);
     li.classList.add(task.priority);
     if (task.done) {
@@ -137,6 +139,7 @@ function renderTasks(tasks) {
       const newText = prompt('Task text:', task.text);
       if (newText === null) return;
       const newDue = prompt('Due date (YYYY-MM-DD):', task.dueDate || '');
+      const newTime = prompt('Due time (HH:MM):', task.dueTime || '');
       const newPriority = prompt('Priority (high, medium, low):', task.priority);
       const newCategory = prompt('Category:', task.category || '');
       await fetch(`/api/tasks/${task.id}`, {
@@ -145,7 +148,7 @@ function renderTasks(tasks) {
           'Content-Type': 'application/json',
           'CSRF-Token': csrfToken
         },
-        body: JSON.stringify({ text: newText, dueDate: newDue, priority: newPriority, category: newCategory })
+        body: JSON.stringify({ text: newText, dueDate: newDue, dueTime: newTime, priority: newPriority, category: newCategory })
       });
       loadTasks();
       loadReminders();
@@ -275,7 +278,8 @@ async function loadReminders() {
     container.style.display = 'block';
     reminders.forEach(r => {
       const li = document.createElement('li');
-      li.textContent = `Reminder: "${r.text}" due ${r.dueDate}`;
+      const due = r.dueTime ? `${r.dueDate} ${r.dueTime}` : r.dueDate;
+      li.textContent = `Reminder: "${r.text}" due ${due}`;
       container.appendChild(li);
     });
   } else {
@@ -286,10 +290,12 @@ async function loadReminders() {
 document.getElementById('add-button').onclick = async () => {
   const input = document.getElementById('task-input');
   const dueInput = document.getElementById('due-date-input');
+  const timeInput = document.getElementById('due-time-input');
   const categoryInput = document.getElementById('category-input');
   const prioritySelect = document.getElementById('priority-select');
   const text = input.value.trim();
   const dueDate = dueInput.value;
+  const dueTime = timeInput.value;
   const priority = prioritySelect.value;
   const category = categoryInput.value.trim();
   if (text) {
@@ -299,10 +305,11 @@ document.getElementById('add-button').onclick = async () => {
         'Content-Type': 'application/json',
         'CSRF-Token': csrfToken
       },
-      body: JSON.stringify({ text, dueDate, priority, category })
+      body: JSON.stringify({ text, dueDate, dueTime, priority, category })
     });
     input.value = '';
     dueInput.value = '';
+    timeInput.value = '';
     categoryInput.value = '';
     prioritySelect.value = 'medium';
     loadTasks();

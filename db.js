@@ -22,6 +22,7 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
     dueDate TEXT,
+    dueTime TEXT,
     priority TEXT NOT NULL,
     done INTEGER NOT NULL DEFAULT 0,
     userId INTEGER,
@@ -116,6 +117,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'groupId')) {
       db.run('ALTER TABLE tasks ADD COLUMN groupId INTEGER');
+    }
+    if (!cols.some(c => c.name === 'dueTime')) {
+      db.run('ALTER TABLE tasks ADD COLUMN dueTime TEXT');
     }
     if (!cols.some(c => c.name === 'reminderSent')) {
       db.run('ALTER TABLE tasks ADD COLUMN reminderSent INTEGER NOT NULL DEFAULT 0');
@@ -241,14 +245,14 @@ function listTasks({
   });
 }
 
-function createTask({ text, dueDate, priority = 'medium', done = false, userId, category, assignedTo, groupId, repeatInterval }) {
+function createTask({ text, dueDate, dueTime, priority = 'medium', done = false, userId, category, assignedTo, groupId, repeatInterval }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO tasks (text, dueDate, priority, done, userId, category, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
-      [text, dueDate, priority, done ? 1 : 0, userId, category, assignedTo, groupId, repeatInterval],
+      `INSERT INTO tasks (text, dueDate, dueTime, priority, done, userId, category, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
+      [text, dueDate, dueTime, priority, done ? 1 : 0, userId, category, assignedTo, groupId, repeatInterval],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, priority, done, userId, category, assignedTo, groupId, repeatInterval, lastReminderDate: null });
+        resolve({ id: this.lastID, text, dueDate, dueTime, priority, done, userId, category, assignedTo, groupId, repeatInterval, lastReminderDate: null });
       }
     );
   });
@@ -280,6 +284,12 @@ function updateTask(id, fields, userId) {
     if (fields.dueDate !== undefined) {
       updates.push('dueDate = ?');
       params.push(fields.dueDate);
+      updates.push('reminderSent = 0');
+      updates.push('lastReminderDate = NULL');
+    }
+    if (fields.dueTime !== undefined) {
+      updates.push('dueTime = ?');
+      params.push(fields.dueTime);
       updates.push('reminderSent = 0');
       updates.push('lastReminderDate = NULL');
     }
@@ -837,12 +847,12 @@ function setUserGithubId(id, githubId) {
 
 function getDueSoonTasks(userId) {
   return new Promise((resolve, reject) => {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const limit = today.toISOString().slice(0, 10);
-    const params = [limit, userId, userId, userId, limit];
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toISOString().slice(11, 16);
+    const params = [dateStr, dateStr, timeStr, userId, userId, userId, dateStr];
     const sql =
-      'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND dueDate <= ? AND done = 0 AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?)) AND (lastReminderDate IS NULL OR lastReminderDate < ?)';
+      'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND done = 0 AND (dueDate < ? OR (dueDate = ? AND (dueTime IS NULL OR dueTime <= ?))) AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?)) AND (lastReminderDate IS NULL OR lastReminderDate < ?)';
     db.all(sql, params, (err, rows) => {
       if (err) return reject(err);
       if (!rows || rows.length === 0) return resolve([]);
@@ -850,7 +860,7 @@ function getDueSoonTasks(userId) {
       const placeholders = ids.map(() => '?').join(',');
       db.run(
         `UPDATE tasks SET lastReminderDate = ? WHERE id IN (${placeholders})`,
-        [limit, ...ids],
+        [dateStr, ...ids],
         err2 => {
           if (err2) return reject(err2);
           resolve(rows);
