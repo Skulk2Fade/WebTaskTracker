@@ -32,6 +32,46 @@ if (enableGoogle || enableGithub) {
 }
 const app = express();
 
+// Simple Server-Sent Events implementation
+const sseClients = new Map();
+
+function addSseClient(userId, res) {
+  if (!sseClients.has(userId)) sseClients.set(userId, new Set());
+  sseClients.get(userId).add(res);
+  res.on('close', () => {
+    const set = sseClients.get(userId);
+    if (set) {
+      set.delete(res);
+      if (set.size === 0) sseClients.delete(userId);
+    }
+  });
+}
+
+function sendSse(userId, type, data) {
+  const set = sseClients.get(userId);
+  if (!set) return;
+  const payload = `data:${JSON.stringify({ type, ...data })}\n\n`;
+  for (const res of set) {
+    res.write(payload);
+  }
+}
+
+async function checkDueSoon() {
+  for (const id of Array.from(sseClients.keys())) {
+    const uid = parseInt(id, 10);
+    try {
+      const tasks = await db.getDueSoonTasks(uid);
+      for (const t of tasks) {
+        sendSse(uid, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}
+
+setInterval(checkDueSoon, 60000);
+
 // Use a higher bcrypt work factor for stronger password hashing.
 // Configurable via the BCRYPT_ROUNDS environment variable.
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
@@ -201,6 +241,16 @@ if (passport) {
 
 app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
+});
+
+app.get('/api/events', requireAuth, (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
+  });
+  res.flushHeaders();
+  addSseClient(req.session.userId, res);
 });
 
 function requireAuth(req, res, next) {
@@ -660,6 +710,9 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
         );
       }
     }
+    for (const t of tasks) {
+      sendSse(req.session.userId, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate });
+    }
     res.json(tasks);
   } catch (err) {
     console.error(err);
@@ -753,6 +806,7 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
       text: updated.text,
       assignedTo: user.username
     });
+    sendSse(user.id, 'task_assigned', { taskId: updated.id, text: updated.text });
     res.json(updated);
   } catch (err) {
     console.error(err);
@@ -1054,6 +1108,7 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
             `A new comment was added to task "${task.text}": ${text}`
           );
         }
+        sendSse(user.id, 'task_commented', { taskId, text });
       }
     }
     await webhooks.sendWebhook('task_commented', {
