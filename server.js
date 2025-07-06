@@ -596,6 +596,25 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/tasks/:id', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  try {
+    const task = await db.getTask(id, req.session.userId);
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    const [subtasks, dependencies, comments] = await Promise.all([
+      db.listSubtasks(id, req.session.userId),
+      db.listDependencies(id, req.session.userId),
+      db.listComments(id, req.session.userId)
+    ]);
+    res.json({ ...task, subtasks, dependencies, comments });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load task' });
+  }
+});
+
 function escapeCsv(val) {
   if (val === undefined || val === null) return '';
   const str = String(val);

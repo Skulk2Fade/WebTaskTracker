@@ -823,3 +823,53 @@ test('webhooks triggered on task actions', async () => {
   expect(webhooks.sentWebhooks.some(h => h.payload.event === 'task_completed')).toBe(true);
 });
 
+
+test('get single task with related data', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'single', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Main' });
+  const mainId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Dep' });
+  const depId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${mainId}/subtasks`)
+    .set('CSRF-Token', token)
+    .send({ text: 'Sub' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${mainId}/dependencies`)
+    .set('CSRF-Token', token)
+    .send({ dependsOn: depId });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${mainId}/comments`)
+    .set('CSRF-Token', token)
+    .send({ text: 'hello' });
+
+  res = await agent.get(`/api/tasks/${mainId}`);
+  expect(res.status).toBe(200);
+  expect(res.body.id).toBe(mainId);
+  expect(res.body.subtasks.length).toBe(1);
+  expect(res.body.dependencies).toContain(depId);
+  expect(res.body.comments.length).toBe(1);
+});
+
