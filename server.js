@@ -694,6 +694,11 @@ function toIcs(tasks) {
     } else if (t.dueDate) {
       lines.push('DUE;VALUE=DATE:' + t.dueDate.replace(/-/g, ''));
     }
+    if (t.priority) {
+      const p = t.priority === 'high' ? 1 : t.priority === 'medium' ? 5 : 9;
+      lines.push('PRIORITY:' + p);
+    }
+    lines.push('STATUS:' + (t.done ? 'COMPLETED' : 'NEEDS-ACTION'));
     lines.push('SUMMARY:' + (t.text || '').replace(/\r?\n/g, ' '));
     lines.push('END:VTODO');
   }
