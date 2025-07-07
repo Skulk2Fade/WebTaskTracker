@@ -99,6 +99,21 @@ Changing the session (for example by registering, logging in or logging out)
 invalidates the previous token. Always fetch a fresh token from the same
 endpoint before sending another state-changing request.
 
+Tokens are stored server-side and can be kept in a cookie or fetched
+dynamically from JavaScript. The included frontend retrieves a fresh value via
+`/api/csrf-token` and stores it in a variable before making API calls. A basic
+pattern looks like:
+
+```js
+const res = await fetch('/api/csrf-token');
+const { csrfToken } = await res.json();
+await fetch('/api/tasks', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+  body: JSON.stringify({ text: 'Example task' })
+});
+```
+
 ## Testing
 
 Automated tests are provided using Jest. Make sure all dependencies, including
