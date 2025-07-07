@@ -76,9 +76,24 @@ setInterval(checkDueSoon, 60000);
 // Use a higher bcrypt work factor for stronger password hashing.
 // Configurable via the BCRYPT_ROUNDS environment variable.
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
+
+const ALLOWED_MIME_TYPES = new Set([
+  'text/plain',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'application/pdf',
+  'application/octet-stream'
+]);
+
 const ATTACHMENT_DIR = process.env.ATTACHMENT_DIR;
 if (ATTACHMENT_DIR) {
-  fs.mkdirSync(ATTACHMENT_DIR, { recursive: true });
+  const resolved = path.resolve(ATTACHMENT_DIR);
+  const publicDir = path.resolve(__dirname, 'public');
+  if (resolved.startsWith(publicDir)) {
+    console.warn('ATTACHMENT_DIR should not be inside the public directory');
+  }
+  fs.mkdirSync(resolved, { recursive: true, mode: 0o700 });
 }
 
 app.use(express.json());
@@ -119,6 +134,10 @@ function isStrongPassword(pw) {
     /[A-Z]/.test(pw) &&
     /[0-9]/.test(pw)
   );
+}
+
+function isAllowedMimeType(type) {
+  return ALLOWED_MIME_TYPES.has(type);
 }
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
@@ -1266,6 +1285,9 @@ app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
   if (!filename || !mimeType || !content) {
     return res.status(400).json({ error: 'filename, mimeType and content required' });
   }
+  if (!isAllowedMimeType(mimeType)) {
+    return res.status(400).json({ error: 'Unsupported mime type' });
+  }
   try {
     const att = await db.createTaskAttachment(
       taskId,
@@ -1286,8 +1308,11 @@ app.post('/api/tasks/:taskId/attachments/upload', requireAuth, async (req, res) 
   const filename = req.headers['x-filename'];
   const mimeType = req.headers['content-type'] || 'application/octet-stream';
   if (!filename) return res.status(400).json({ error: 'X-Filename header required' });
+  if (!isAllowedMimeType(mimeType)) {
+    return res.status(400).json({ error: 'Unsupported mime type' });
+  }
   const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
-  const stream = fs.createWriteStream(temp);
+  const stream = fs.createWriteStream(temp, { mode: 0o600 });
   req.pipe(stream);
   stream.on('finish', async () => {
     try {
@@ -1328,6 +1353,9 @@ app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) =
   if (!filename || !mimeType || !content) {
     return res.status(400).json({ error: 'filename, mimeType and content required' });
   }
+  if (!isAllowedMimeType(mimeType)) {
+    return res.status(400).json({ error: 'Unsupported mime type' });
+  }
   try {
     const att = await db.createCommentAttachment(
       commentId,
@@ -1348,8 +1376,11 @@ app.post('/api/comments/:commentId/attachments/upload', requireAuth, async (req,
   const filename = req.headers['x-filename'];
   const mimeType = req.headers['content-type'] || 'application/octet-stream';
   if (!filename) return res.status(400).json({ error: 'X-Filename header required' });
+  if (!isAllowedMimeType(mimeType)) {
+    return res.status(400).json({ error: 'Unsupported mime type' });
+  }
   const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
-  const stream = fs.createWriteStream(temp);
+  const stream = fs.createWriteStream(temp, { mode: 0o600 });
   req.pipe(stream);
   stream.on('finish', async () => {
     try {
