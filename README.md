@@ -101,10 +101,26 @@ endpoint before sending another state-changing request.
 
 ## Testing
 
-Automated tests are provided using Jest. Run them with:
+Automated tests are provided using Jest. Make sure all dependencies, including
+the Jest test runner, are installed first:
+
+```bash
+npm install
+```
+
+Run the suite with:
 
 ```bash
 npm test
+```
+
+Jest is listed in `package.json` under `devDependencies`:
+
+```json
+  "devDependencies": {
+    "jest": "^29.6.1",
+    "supertest": "^6.3.3"
+  }
 ```
 
 ## Import/Export
