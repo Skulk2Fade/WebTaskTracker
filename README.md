@@ -55,6 +55,26 @@ you can also log in using those providers from the login screen.
 Passwords must be at least 8 characters long and include upper and lower case
 letters and a number.
 
+## Two-Factor Authentication
+
+Strengthen account security by enabling time-based one-time passwords.
+While logged in, send:
+
+```
+POST /api/enable-2fa
+```
+
+The response contains a `secret` string. Add this secret to any authenticator
+app (Google Authenticator, Authy, etc.) to start generating 6-digit codes. When
+2FA is enabled you must include a `token` field with the current code alongside
+your username and password when calling `/api/login`.
+
+Disable two-factor authentication at any time with:
+
+```
+POST /api/disable-2fa
+```
+
 ## Password Reset
 
 If you forget your password, request a reset token by sending a POST request to
