@@ -143,6 +143,15 @@ function isStrongPassword(pw) {
 function isAllowedMimeType(type) {
   return ALLOWED_MIME_TYPES.has(type);
 }
+
+function handleError(res, err, message) {
+  console.error(err);
+  const body = { error: message };
+  if (process.env.NODE_ENV !== 'production') {
+    body.details = err.message;
+  }
+  res.status(500).json(body);
+}
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
   console.error('SESSION_SECRET environment variable is required');
@@ -350,12 +359,10 @@ app.post('/api/register', async (req, res) => {
     }
     res.json({ id: user.id, username: user.username, role: user.role });
   } catch (err) {
-    console.error(err);
     if (err.code === 'SQLITE_CONSTRAINT') {
-      res.status(400).json({ error: 'Username taken' });
-    } else {
-      res.status(500).json({ error: 'Failed to register' });
+      return res.status(400).json({ error: 'Username taken' });
     }
+    handleError(res, err, 'Failed to register');
   }
 });
 
@@ -381,8 +388,7 @@ app.post('/api/login', async (req, res) => {
     req.session.userId = user.id;
     res.json({ id: user.id, username: user.username, role: user.role });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to login' });
+    handleError(res, err, 'Failed to login');
   }
 });
 
@@ -398,8 +404,7 @@ app.post('/api/enable-2fa', requireAuth, async (req, res) => {
     await db.setUserTwoFactorSecret(req.session.userId, secret);
     res.json({ secret });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to enable 2FA' });
+    handleError(res, err, 'Failed to enable 2FA');
   }
 });
 
@@ -408,8 +413,7 @@ app.post('/api/disable-2fa', requireAuth, async (req, res) => {
     await db.setUserTwoFactorSecret(req.session.userId, null);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to disable 2FA' });
+    handleError(res, err, 'Failed to disable 2FA');
   }
 });
 
@@ -431,8 +435,7 @@ app.post('/api/request-password-reset', async (req, res) => {
       res.json({ ok: true });
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create reset token' });
+    handleError(res, err, 'Failed to create reset token');
   }
 });
 
@@ -457,8 +460,7 @@ app.post('/api/reset-password', async (req, res) => {
     await db.markPasswordResetUsed(reset.id);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to reset password' });
+    handleError(res, err, 'Failed to reset password');
   }
 });
 
@@ -475,8 +477,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     const users = await db.listUsers();
     res.json(users);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load users' });
+    handleError(res, err, 'Failed to load users');
   }
 });
 
@@ -487,8 +488,7 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     if (!ok) return res.status(404).json({ error: 'User not found' });
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete user' });
+    handleError(res, err, 'Failed to delete user');
   }
 });
 
@@ -498,8 +498,7 @@ app.get('/api/admin/logs', requireAdmin, async (req, res) => {
     const logs = await db.listActivity(limit);
     res.json(logs);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load logs' });
+    handleError(res, err, 'Failed to load logs');
   }
 });
 
@@ -508,8 +507,7 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
     const stats = await db.getStats();
     res.json(stats);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load stats' });
+    handleError(res, err, 'Failed to load stats');
   }
 });
 
@@ -518,8 +516,7 @@ app.get('/api/admin/reports', requireAdmin, async (req, res) => {
     const reports = await db.getReports();
     res.json(reports);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load reports' });
+    handleError(res, err, 'Failed to load reports');
   }
 });
 
@@ -532,8 +529,7 @@ app.get('/api/preferences', requireAuth, async (req, res) => {
       emailNotifications: !!user.emailNotifications
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load preferences' });
+    handleError(res, err, 'Failed to load preferences');
   }
 });
 
@@ -549,8 +545,7 @@ app.put('/api/preferences', requireAuth, async (req, res) => {
       emailNotifications: !!user.emailNotifications
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update preferences' });
+    handleError(res, err, 'Failed to update preferences');
   }
 });
 
@@ -562,8 +557,7 @@ app.post('/api/groups', requireAuth, async (req, res) => {
     await db.addUserToGroup(group.id, req.session.userId);
     res.status(201).json(group);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create group' });
+    handleError(res, err, 'Failed to create group');
   }
 });
 
@@ -573,8 +567,7 @@ app.post('/api/groups/:id/join', requireAuth, async (req, res) => {
     await db.addUserToGroup(id, req.session.userId);
     res.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to join group' });
+    handleError(res, err, 'Failed to join group');
   }
 });
 
@@ -583,8 +576,7 @@ app.get('/api/groups', requireAuth, async (req, res) => {
     const groups = await db.listUserGroups(req.session.userId);
     res.json(groups);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load groups' });
+    handleError(res, err, 'Failed to load groups');
   }
 });
 
@@ -614,8 +606,7 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
     });
     res.json(tasks);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load tasks' });
+    handleError(res, err, 'Failed to load tasks');
   }
 });
 
@@ -633,8 +624,7 @@ app.get('/api/tasks/:id', requireAuth, async (req, res) => {
     ]);
     res.json({ ...task, subtasks, dependencies, comments });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load task' });
+    handleError(res, err, 'Failed to load task');
   }
 });
 
@@ -761,8 +751,7 @@ app.get('/api/tasks/export', requireAuth, async (req, res) => {
       res.json(tasks);
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to export tasks' });
+    handleError(res, err, 'Failed to export tasks');
   }
 });
 
@@ -773,8 +762,7 @@ app.get('/api/tasks/ics', requireAuth, async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="tasks.ics"');
     res.send(toIcs(tasks));
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to export tasks' });
+    handleError(res, err, 'Failed to export tasks');
   }
 });
 
@@ -807,8 +795,7 @@ app.post('/api/tasks/import', requireAuth, async (req, res) => {
     }
     res.status(201).json(created);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to import tasks' });
+    handleError(res, err, 'Failed to import tasks');
   }
 });
 
@@ -831,8 +818,7 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
     }
     res.json(tasks);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load reminders' });
+    handleError(res, err, 'Failed to load reminders');
   }
 });
 
@@ -895,8 +881,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
     });
     res.status(201).json(task);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save task' });
+    handleError(res, err, 'Failed to save task');
   }
 });
 
@@ -930,8 +915,7 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
     sendSse(user.id, 'task_assigned', { taskId: updated.id, text: updated.text });
     res.json(updated);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to assign task' });
+    handleError(res, err, 'Failed to assign task');
   }
 });
 
@@ -1037,8 +1021,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     }
     res.json(updated);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save task' });
+    handleError(res, err, 'Failed to save task');
   }
 });
 
@@ -1065,8 +1048,7 @@ app.put('/api/tasks/bulk', requireAuth, async (req, res) => {
     }
     res.json(results);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update tasks' });
+    handleError(res, err, 'Failed to update tasks');
   }
 });
 
@@ -1083,8 +1065,7 @@ app.post('/api/tasks/bulk-delete', requireAuth, requireAdmin, async (req, res) =
     }
     res.json(results);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete tasks' });
+    handleError(res, err, 'Failed to delete tasks');
   }
 });
 
@@ -1097,8 +1078,7 @@ app.delete('/api/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
     }
     res.json(deleted);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save task' });
+    handleError(res, err, 'Failed to save task');
   }
 });
 
@@ -1108,8 +1088,7 @@ app.get('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
     const subs = await db.listSubtasks(taskId, req.session.userId);
     res.json(subs);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load subtasks' });
+    handleError(res, err, 'Failed to load subtasks');
   }
 });
 
@@ -1124,8 +1103,7 @@ app.post('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
     if (!sub) return res.status(404).json({ error: 'Task not found' });
     res.status(201).json(sub);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save subtask' });
+    handleError(res, err, 'Failed to save subtask');
   }
 });
 
@@ -1140,8 +1118,7 @@ app.put('/api/subtasks/:id', requireAuth, async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Subtask not found' });
     res.json(updated);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save subtask' });
+    handleError(res, err, 'Failed to save subtask');
   }
 });
 
@@ -1152,8 +1129,7 @@ app.delete('/api/subtasks/:id', requireAuth, async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Subtask not found' });
     res.json(deleted);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete subtask' });
+    handleError(res, err, 'Failed to delete subtask');
   }
 });
 
@@ -1165,8 +1141,7 @@ app.get('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
     const tasks = await Promise.all(deps.map(id => db.getTask(id, req.session.userId)));
     res.json(tasks.filter(t => t));
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load dependencies' });
+    handleError(res, err, 'Failed to load dependencies');
   }
 });
 
@@ -1181,8 +1156,7 @@ app.post('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
     if (!dep) return res.status(404).json({ error: 'Task not found' });
     res.status(201).json(dep);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save dependency' });
+    handleError(res, err, 'Failed to save dependency');
   }
 });
 
@@ -1194,8 +1168,7 @@ app.delete('/api/tasks/:taskId/dependencies/:depId', requireAuth, async (req, re
     if (!dep) return res.status(404).json({ error: 'Task not found' });
     res.json(dep);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete dependency' });
+    handleError(res, err, 'Failed to delete dependency');
   }
 });
 
@@ -1205,8 +1178,7 @@ app.get('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
     const comments = await db.listComments(taskId, req.session.userId);
     res.json(comments);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load comments' });
+    handleError(res, err, 'Failed to load comments');
   }
 });
 
@@ -1254,8 +1226,7 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
     });
     res.status(201).json(comment);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save comment' });
+    handleError(res, err, 'Failed to save comment');
   }
 });
 
@@ -1266,8 +1237,7 @@ app.delete('/api/comments/:id', requireAuth, async (req, res) => {
     if (!deleted) return res.status(404).json({ error: 'Comment not found' });
     res.json(deleted);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete comment' });
+    handleError(res, err, 'Failed to delete comment');
   }
 });
 
@@ -1278,8 +1248,7 @@ app.get('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
     if (files === null) return res.status(404).json({ error: 'Task not found' });
     res.json(files);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load attachments' });
+    handleError(res, err, 'Failed to load attachments');
   }
 });
 
@@ -1301,8 +1270,7 @@ app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
     if (!att) return res.status(404).json({ error: 'Task not found' });
     res.status(201).json(att);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save attachment' });
+    handleError(res, err, 'Failed to save attachment');
   }
 });
 
@@ -1328,14 +1296,12 @@ app.post('/api/tasks/:taskId/attachments/upload', requireAuth, async (req, res) 
       res.status(201).json(att);
     } catch (err) {
       fs.unlink(temp, () => {});
-      console.error(err);
-      res.status(500).json({ error: 'Failed to save attachment' });
+      handleError(res, err, 'Failed to save attachment');
     }
   });
   stream.on('error', err => {
     fs.unlink(temp, () => {});
-    console.error(err);
-    res.status(500).json({ error: 'Failed to write file' });
+    handleError(res, err, 'Failed to write file');
   });
 });
 
@@ -1346,8 +1312,7 @@ app.get('/api/comments/:commentId/attachments', requireAuth, async (req, res) =>
     if (files === null) return res.status(404).json({ error: 'Comment not found' });
     res.json(files);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load attachments' });
+    handleError(res, err, 'Failed to load attachments');
   }
 });
 
@@ -1369,8 +1334,7 @@ app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) =
     if (!att) return res.status(404).json({ error: 'Comment not found' });
     res.status(201).json(att);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save attachment' });
+    handleError(res, err, 'Failed to save attachment');
   }
 });
 
@@ -1396,14 +1360,12 @@ app.post('/api/comments/:commentId/attachments/upload', requireAuth, async (req,
       res.status(201).json(att);
     } catch (err) {
       fs.unlink(temp, () => {});
-      console.error(err);
-      res.status(500).json({ error: 'Failed to save attachment' });
+      handleError(res, err, 'Failed to save attachment');
     }
   });
   stream.on('error', err => {
     fs.unlink(temp, () => {});
-    console.error(err);
-    res.status(500).json({ error: 'Failed to write file' });
+    handleError(res, err, 'Failed to write file');
   });
 });
 
@@ -1419,8 +1381,7 @@ app.get('/api/attachments/:id', requireAuth, async (req, res) => {
       res.send(att.data);
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load attachment' });
+    handleError(res, err, 'Failed to load attachment');
   }
 });
 
@@ -1434,8 +1395,7 @@ app.get('/api/tasks/:id/history', requireAuth, async (req, res) => {
     const events = await db.listHistory(id, req.session.userId);
     res.json(events);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to load history' });
+    handleError(res, err, 'Failed to load history');
   }
 });
 
