@@ -177,7 +177,7 @@ function listTasks({
     const params = [];
 
     if (userId !== undefined) {
-      where.push('(userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))');
+      where.push('(tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))');
       params.push(userId, userId, userId);
     }
 
@@ -265,7 +265,7 @@ function getTask(id, userId) {
     const params = [id];
     let sql = 'SELECT * FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -321,7 +321,7 @@ function updateTask(id, fields, userId) {
     params.push(id);
     let sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.run(sql, params, function (err) {
@@ -402,7 +402,7 @@ function listDependencies(taskId, userId) {
     const checkParams = [taskId];
     let checkSql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      checkSql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      checkSql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       checkParams.push(userId, userId, userId);
     }
     db.get(checkSql, checkParams, (err, row) => {
@@ -425,7 +425,7 @@ function addDependency(taskId, dependsOn, userId) {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -452,7 +452,7 @@ function removeDependency(taskId, dependsOn, userId) {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -494,7 +494,7 @@ function createComment(taskId, text, userId) {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -553,7 +553,7 @@ function createTaskAttachment(taskId, { filename, mimeType, content, filePath },
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -614,7 +614,7 @@ function listTaskAttachments(taskId, userId) {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -693,7 +693,7 @@ function createSubtask(taskId, { text, done = false }, userId) {
     const params = [taskId];
     let sql = 'SELECT id FROM tasks WHERE id = ?';
     if (userId !== undefined) {
-      sql += ' AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.get(sql, params, (err, row) => {
@@ -729,7 +729,7 @@ function updateSubtask(id, fields, userId) {
     params.push(id);
     let sql = `UPDATE subtasks SET ${updates.join(', ')} WHERE id = ?`;
     if (userId !== undefined) {
-      sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      sql += ' AND taskId IN (SELECT id FROM tasks WHERE tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
       params.push(userId, userId, userId);
     }
     db.run(sql, params, function (err) {
@@ -748,7 +748,7 @@ function deleteSubtask(id, userId) {
         const params = [id];
         let sql = 'DELETE FROM subtasks WHERE id = ?';
         if (userId !== undefined) {
-          sql += ' AND taskId IN (SELECT id FROM tasks WHERE userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+          sql += ' AND taskId IN (SELECT id FROM tasks WHERE tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
           params.push(userId, userId, userId);
         }
         db.run(sql, params, function (err) {
@@ -886,7 +886,7 @@ function getDueSoonTasks(userId) {
     const timeStr = now.toISOString().slice(11, 16);
     const params = [dateStr, dateStr, timeStr, userId, userId, userId, dateStr];
     const sql =
-      'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND done = 0 AND (dueDate < ? OR (dueDate = ? AND (dueTime IS NULL OR dueTime <= ?))) AND (userId = ? OR assignedTo = ? OR groupId IN (SELECT groupId FROM group_members WHERE userId = ?)) AND (lastReminderDate IS NULL OR lastReminderDate < ?)';
+      'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND done = 0 AND (dueDate < ? OR (dueDate = ? AND (dueTime IS NULL OR dueTime <= ?))) AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?)) AND (lastReminderDate IS NULL OR lastReminderDate < ?)';
     db.all(sql, params, (err, rows) => {
       if (err) return reject(err);
       if (!rows || rows.length === 0) return resolve([]);
