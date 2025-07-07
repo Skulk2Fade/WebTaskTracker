@@ -7,8 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Task Calendar</h1>
-  <a href="index.html">Back to Tasks</a>
+  <header>
+    <h1>Task Calendar</h1>
+    <nav>
+      <a href="index.html">Back to Tasks</a>
+    </nav>
+  </header>
+  <div class="container">
   <ul id="notifications" style="display:none;"></ul>
   <div id="auth">
     <form id="login-form">
@@ -31,6 +36,8 @@
     <button id="next-month">Next</button>
   </div>
   <table id="calendar"></table>
+
+  </div> <!-- end container -->
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>

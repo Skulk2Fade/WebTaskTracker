@@ -7,8 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Admin Dashboard</h1>
-  <a href="index.html">Back to Tasks</a>
+  <header>
+    <h1>Admin Dashboard</h1>
+    <nav>
+      <a href="index.html">Back to Tasks</a>
+    </nav>
+  </header>
+  <div class="container">
   <div id="admin-content" style="display:none;">
     <h2>System Statistics</h2>
     <pre id="stats"></pre>
@@ -20,6 +25,7 @@
     <ul id="logs"></ul>
   </div>
   <div id="not-admin" class="error" style="display:none;">Access denied</div>
+  </div> <!-- end container -->
   <script src="admin.js"></script>
   <script src="sw-register.js"></script>
 </body>
