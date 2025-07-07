@@ -192,7 +192,8 @@ When creating a task you can specify `groupId` so it is shared with all group me
 You can attach files to tasks or comments. By default the body should contain
 base64 encoded `content` which is stored directly in the database. If the
 `ATTACHMENT_DIR` environment variable is set, you can also stream raw file
-data to disk using the `/upload` endpoints.
+data to disk using the `/upload` endpoints. Ensure the directory is **outside**
+the `public` folder so uploads are not accessible directly.
 
 ```
 POST /api/tasks/:taskId/attachments
@@ -207,6 +208,8 @@ GET /api/attachments/:id
 ```
 
 Streaming uploads require `ATTACHMENT_DIR` to point to a writable directory.
+Uploaded files are validated against a small list of safe MIME types and are
+written with `0600` permissions for your user only.
 
 ## Markdown Formatting
 
