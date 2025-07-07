@@ -397,9 +397,10 @@ if (githubBtn) githubBtn.onclick = () => (window.location.href = '/auth/github')
 document.getElementById('register-button').onclick = async () => {
   const username = document.getElementById('username-input').value.trim();
   const password = document.getElementById('password-input').value;
-  document.getElementById('login-error').textContent = '';
+  const errorEl = document.getElementById('login-error');
+  errorEl.textContent = '';
   if (username && password) {
-    await fetch('/api/register', {
+    const res = await fetch('/api/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -408,8 +409,14 @@ document.getElementById('register-button').onclick = async () => {
       body: JSON.stringify({ username, password })
     });
     document.getElementById('password-input').value = '';
-    await updateCsrfToken();
-    checkAuth();
+    if (res.ok) {
+      await updateCsrfToken();
+      checkAuth();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      errorEl.textContent = data.error || 'Registration failed';
+      await updateCsrfToken();
+    }
   }
 };
 
