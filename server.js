@@ -13,10 +13,12 @@ const webhooks = require('./webhooks');
 let passport;
 let GoogleStrategy;
 let GitHubStrategy;
-const enableGoogle =
-  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
-const enableGithub =
-  process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET;
+const enableGoogle = Boolean(
+  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+);
+const enableGithub = Boolean(
+  process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+);
 if (enableGoogle || enableGithub) {
   try {
     passport = require('passport');
@@ -30,6 +32,8 @@ if (enableGoogle || enableGithub) {
     console.warn('Passport modules not installed; OAuth disabled');
     passport = null;
   }
+} else {
+  console.warn('OAuth environment variables not set; skipping Passport initialization');
 }
 const app = express();
 
