@@ -22,6 +22,8 @@ npm install
 
 This will install `sqlite3` which is used for persistence. The database file
 `tasks.db` will be created automatically on first run.
+Indexes on the `dueDate`, `userId` and `assignedTo` columns are created to keep
+common task queries fast.
 Session data is also stored in this database so it survives server restarts.
 Session cookies are configured with `httpOnly`, `sameSite=lax` and
 `secure` (enabled when `NODE_ENV` is set to `production`) to help protect

@@ -110,6 +110,11 @@ db.serialize(() => {
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
+  // Add indexes to speed up common queries
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_assignedTo ON tasks(assignedTo)');
+
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
     if (err) return;
     if (!cols.some(c => c.name === 'userId')) {
