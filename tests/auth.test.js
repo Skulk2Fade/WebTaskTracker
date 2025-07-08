@@ -103,7 +103,9 @@ test('two factor authentication flow', async () => {
     .set('CSRF-Token', token);
   expect(res.status).toBe(200);
   const secret = res.body.secret;
+  const qr = res.body.qr;
   expect(secret).toBeTruthy();
+  expect(qr).toMatch(/^https:\/\//);
 
   token = await getCsrfToken(agent);
   await agent.post('/api/logout').set('CSRF-Token', token);
@@ -116,7 +118,8 @@ test('two factor authentication flow', async () => {
   expect(res.status).toBe(400);
 
   const totp = require('../totp');
-  const otp = totp.generateToken(secret);
+  const hexSecret = totp.base32Decode(secret).toString('hex');
+  const otp = totp.generateToken(hexSecret);
 
   token = await getCsrfToken(agent);
   res = await agent

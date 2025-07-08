@@ -69,8 +69,9 @@ While logged in, send:
 POST /api/enable-2fa
 ```
 
-The response contains a `secret` string. Add this secret to any authenticator
-app (Google Authenticator, Authy, etc.) to start generating 6-digit codes. When
+The response contains a `secret` in base32 format and a `qr` URL that can be
+used to generate a QR code for your authenticator app. The server encrypts the
+secret before storing it. When
 2FA is enabled you must include a `token` field with the current code alongside
 your username and password when calling `/api/login`.
 

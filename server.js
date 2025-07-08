@@ -7,6 +7,7 @@ const SQLiteStore = require('./sqliteStore');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const csurf = require('csurf');
+const { encrypt, decrypt } = require('./cryptoUtil');
 const totp = require('./totp');
 const email = require('./email');
 const webhooks = require('./webhooks');
@@ -416,7 +417,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     let valid = match;
     if (valid && user.twofaSecret) {
-      valid = totp.verifyToken(token, user.twofaSecret);
+      const decrypted = decrypt(user.twofaSecret);
+      valid = totp.verifyToken(token, decrypted);
     }
     if (!valid) {
       const updated = await db.incrementFailedLoginAttempts(user.id);
@@ -446,8 +448,17 @@ app.post('/api/logout', (req, res) => {
 app.post('/api/enable-2fa', requireAuth, async (req, res) => {
   try {
     const secret = totp.generateSecret();
-    await db.setUserTwoFactorSecret(req.session.userId, secret);
-    res.json({ secret });
+    const encrypted = encrypt(secret);
+    await db.setUserTwoFactorSecret(req.session.userId, encrypted);
+    const user = await db.getUserById(req.session.userId);
+    const base32 = totp.base32Encode(Buffer.from(secret, 'hex'));
+    const otpauth = `otpauth://totp/WebTaskTracker:${encodeURIComponent(
+      user.username
+    )}?secret=${base32}&issuer=WebTaskTracker`;
+    const qr =
+      'https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=' +
+      encodeURIComponent(otpauth);
+    res.json({ secret: base32, qr });
   } catch (err) {
     handleError(res, err, 'Failed to enable 2FA');
   }
