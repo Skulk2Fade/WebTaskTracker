@@ -381,6 +381,30 @@ function requireAuth(req, res, next) {
   next();
 }
 
+async function requireWriter(req, res, next) {
+  try {
+    const user = await db.getUserById(req.session.userId);
+    if (!user || user.role === 'observer') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function requireGroupAdmin(req, res, next) {
+  try {
+    const user = await db.getUserById(req.session.userId);
+    if (!user || (user.role !== 'group_admin' && user.role !== 'admin')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function requireAdmin(req, res, next) {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -396,8 +420,10 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+const ALLOWED_ROLES = ['admin', 'member', 'group_admin', 'observer'];
+
 app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, role } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
   }
@@ -419,8 +445,11 @@ app.post('/api/register', async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const role = userCount === 0 ? 'admin' : 'member';
-    const user = await db.createUser({ username, password: hashed, role });
+    let newRole = userCount === 0 ? 'admin' : 'member';
+    if (userCount > 0 && role && ALLOWED_ROLES.includes(role)) {
+      newRole = role;
+    }
+    const user = await db.createUser({ username, password: hashed, role: newRole });
     if (userCount === 0) {
       req.session.userId = user.id;
     }
@@ -487,7 +516,7 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-app.post('/api/enable-2fa', requireAuth, async (req, res) => {
+app.post('/api/enable-2fa', requireAuth, requireWriter, async (req, res) => {
   try {
     const secret = totp.generateSecret();
     const encrypted = encrypt(secret);
@@ -511,7 +540,7 @@ app.post('/api/enable-2fa', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/disable-2fa', requireAuth, async (req, res) => {
+app.post('/api/disable-2fa', requireAuth, requireWriter, async (req, res) => {
   try {
     await db.setUserTwoFactorSecret(req.session.userId, null, null);
     res.json({ ok: true });
@@ -655,7 +684,7 @@ app.put('/api/preferences', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/groups', requireAuth, async (req, res) => {
+app.post('/api/groups', requireAuth, requireGroupAdmin, async (req, res) => {
   const name = req.body.name;
   if (!name) return res.status(400).json({ error: 'name required' });
   try {
@@ -860,7 +889,7 @@ app.get('/api/tasks/ics', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/import', requireAuth, async (req, res) => {
+app.post('/api/tasks/import', requireAuth, requireWriter, async (req, res) => {
   const ct = req.headers['content-type'] || '';
   let format = 'json';
   if (ct.includes('csv')) {
@@ -926,7 +955,7 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks', requireAuth, async (req, res) => {
+app.post('/api/tasks', requireAuth, requireWriter, async (req, res) => {
   const text = req.body.text;
   const dueDate = req.body.dueDate;
   const dueTime = req.body.dueTime;
@@ -1029,7 +1058,7 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
   }
 });
 
-app.put('/api/tasks/:id', requireAuth, async (req, res) => {
+app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
   const id = parseInt(req.params.id);
   const { text, dueDate, dueTime, priority, status, done, category, tags, repeatInterval } = req.body;
   if (text !== undefined && !text.trim()) {
@@ -1135,7 +1164,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.put('/api/tasks/bulk', requireAuth, async (req, res) => {
+app.put('/api/tasks/bulk', requireAuth, requireWriter, async (req, res) => {
   const { ids, done, priority, status } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'ids required' });
@@ -1206,7 +1235,7 @@ app.get('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
+app.post('/api/tasks/:taskId/subtasks', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   const text = req.body.text;
   if (!text || !text.trim()) {
@@ -1221,7 +1250,7 @@ app.post('/api/tasks/:taskId/subtasks', requireAuth, async (req, res) => {
   }
 });
 
-app.put('/api/subtasks/:id', requireAuth, async (req, res) => {
+app.put('/api/subtasks/:id', requireAuth, requireWriter, async (req, res) => {
   const id = parseInt(req.params.id);
   const { text, done } = req.body;
   if (text !== undefined && !text.trim()) {
@@ -1236,7 +1265,7 @@ app.put('/api/subtasks/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/subtasks/:id', requireAuth, async (req, res) => {
+app.delete('/api/subtasks/:id', requireAuth, requireWriter, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
     const deleted = await db.deleteSubtask(id, req.session.userId);
@@ -1259,7 +1288,7 @@ app.get('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
+app.post('/api/tasks/:taskId/dependencies', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   const dependsOn = parseInt(req.body.dependsOn);
   if (!dependsOn) {
@@ -1274,7 +1303,7 @@ app.post('/api/tasks/:taskId/dependencies', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/tasks/:taskId/dependencies/:depId', requireAuth, async (req, res) => {
+app.delete('/api/tasks/:taskId/dependencies/:depId', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   const depId = parseInt(req.params.depId);
   try {
@@ -1296,7 +1325,7 @@ app.get('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
+app.post('/api/tasks/:taskId/comments', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   const text = req.body.text;
   if (!text || !text.trim()) {
@@ -1344,7 +1373,7 @@ app.post('/api/tasks/:taskId/comments', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/comments/:id', requireAuth, async (req, res) => {
+app.delete('/api/comments/:id', requireAuth, requireWriter, async (req, res) => {
   const id = parseInt(req.params.id);
   try {
     const deleted = await db.deleteComment(id, req.session.userId);
@@ -1366,7 +1395,7 @@ app.get('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
+app.post('/api/tasks/:taskId/attachments', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   const { filename, mimeType, content } = req.body;
   if (!filename || !mimeType || !content) {
@@ -1391,7 +1420,7 @@ app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:taskId/attachments/upload', requireAuth, async (req, res) => {
+app.post('/api/tasks/:taskId/attachments/upload', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   if (!ATTACHMENT_DIR) return res.status(500).json({ error: 'Attachment storage not configured' });
   const filename = req.headers['x-filename'];
@@ -1447,7 +1476,7 @@ app.get('/api/comments/:commentId/attachments', requireAuth, async (req, res) =>
   }
 });
 
-app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) => {
+app.post('/api/comments/:commentId/attachments', requireAuth, requireWriter, async (req, res) => {
   const commentId = parseInt(req.params.commentId);
   const { filename, mimeType, content } = req.body;
   if (!filename || !mimeType || !content) {
@@ -1472,7 +1501,7 @@ app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) =
   }
 });
 
-app.post('/api/comments/:commentId/attachments/upload', requireAuth, async (req, res) => {
+app.post('/api/comments/:commentId/attachments/upload', requireAuth, requireWriter, async (req, res) => {
   const commentId = parseInt(req.params.commentId);
   if (!ATTACHMENT_DIR) return res.status(500).json({ error: 'Attachment storage not configured' });
   const filename = req.headers['x-filename'];
@@ -1533,7 +1562,7 @@ app.get('/api/attachments/:id', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tasks/:taskId/time', requireAuth, async (req, res) => {
+app.post('/api/tasks/:taskId/time', requireAuth, requireWriter, async (req, res) => {
   const taskId = parseInt(req.params.taskId);
   const minutes = parseInt(req.body.minutes);
   if (!Number.isInteger(minutes) || minutes <= 0) {

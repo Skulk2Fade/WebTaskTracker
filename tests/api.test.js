@@ -1100,3 +1100,73 @@ test('task time tracking', async () => {
   expect(res.body[0].minutes).toBe(15);
 });
 
+test('observer role cannot modify tasks', async () => {
+  const admin = request.agent(app);
+  let token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'mainadmin', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'mainadmin', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'obs', password: 'Passw0rd!', role: 'observer' });
+
+  const obs = request.agent(app);
+  token = (await obs.get('/api/csrf-token')).body.csrfToken;
+  await obs
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'obs', password: 'Passw0rd!' });
+
+  token = (await obs.get('/api/csrf-token')).body.csrfToken;
+  const res = await obs
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Nope' });
+  expect(res.status).toBe(403);
+});
+
+test('group admin can create group', async () => {
+  const admin = request.agent(app);
+  let token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'first', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'first', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'gadmin', password: 'Passw0rd!', role: 'group_admin' });
+
+  const ga = request.agent(app);
+  token = (await ga.get('/api/csrf-token')).body.csrfToken;
+  await ga
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'gadmin', password: 'Passw0rd!' });
+
+  token = (await ga.get('/api/csrf-token')).body.csrfToken;
+  const res2 = await ga
+    .post('/api/groups')
+    .set('CSRF-Token', token)
+    .send({ name: 'TeamX' });
+  expect(res2.status).toBe(201);
+});
+
