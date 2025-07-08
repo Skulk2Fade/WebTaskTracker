@@ -23,6 +23,9 @@ paths:
                   type: string
                 password:
                   type: string
+                role:
+                  type: string
+                  description: Optional role when created by an admin
               required:
                 - username
                 - password
@@ -189,6 +192,11 @@ components:
           type: string
         role:
           type: string
+          enum:
+            - admin
+            - group_admin
+            - member
+            - observer
     Task:
       type: object
       properties:

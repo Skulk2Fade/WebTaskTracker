@@ -10,7 +10,7 @@ Tasks can be assigned to another user using `POST /api/tasks/:id/assign` with a 
 You can also discuss tasks by adding comments using `POST /api/tasks/:taskId/comments` and view them with `GET /api/tasks/:taskId/comments`.
 Tasks may optionally repeat on a daily, weekly, monthly, weekday or last-day schedule by including a `repeatInterval` when creating them. Completing a repeating task automatically schedules the next occurrence.
 
-Users have roles of either `admin` or `member`. The first account created becomes the admin. Once an admin exists, only admins can create additional users, assign tasks or delete tasks.
+Users have roles of `admin`, `group_admin`, `member` or `observer`. The first account created becomes the admin. Only admins can create additional users and may specify any of the roles when doing so. Observers cannot modify tasks and group creation is limited to admins or group admins.
 For a full list of endpoints see the [API reference](docs/api-reference.md) and the machine-readable [OpenAPI specification](docs/openapi.yaml).
 
 ## Installation

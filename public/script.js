@@ -92,6 +92,11 @@ async function checkAuth() {
     taskForm.style.display = 'block';
     controls.style.display = 'block';
     bulkControls.style.display = 'block';
+    if (currentUser.role === 'observer') {
+      taskForm.style.display = 'none';
+      controls.style.display = 'none';
+      bulkControls.style.display = 'none';
+    }
     if (currentUser.role === 'admin') adminLink.style.display = 'inline';
     else adminLink.style.display = 'none';
     loadTasks();
