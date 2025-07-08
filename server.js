@@ -111,6 +111,7 @@ setInterval(checkDueSoon, DUE_SOON_CHECK_INTERVAL);
 // Use a higher bcrypt work factor for stronger password hashing.
 // Configurable via the BCRYPT_ROUNDS environment variable.
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
+const TWO_FA_SECRET_TTL = parseInt(process.env.TWO_FA_SECRET_TTL, 10) || 10 * 60 * 1000;
 
 const ALLOWED_MIME_TYPES = new Set([
   'text/plain',
@@ -417,8 +418,18 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     let valid = match;
     if (valid && user.twofaSecret) {
+      if (
+        user.twofaSecretExpiresAt &&
+        new Date(user.twofaSecretExpiresAt) < new Date()
+      ) {
+        await db.setUserTwoFactorSecret(user.id, null, null);
+        return res.status(400).json({ error: '2FA setup expired' });
+      }
       const decrypted = decrypt(user.twofaSecret);
       valid = totp.verifyToken(token, decrypted);
+      if (valid && user.twofaSecretExpiresAt) {
+        await db.setUserTwoFactorSecret(user.id, user.twofaSecret, null);
+      }
     }
     if (!valid) {
       const updated = await db.incrementFailedLoginAttempts(user.id);
@@ -449,7 +460,12 @@ app.post('/api/enable-2fa', requireAuth, async (req, res) => {
   try {
     const secret = totp.generateSecret();
     const encrypted = encrypt(secret);
-    await db.setUserTwoFactorSecret(req.session.userId, encrypted);
+    const expiresAt = new Date(Date.now() + TWO_FA_SECRET_TTL).toISOString();
+    await db.setUserTwoFactorSecret(
+      req.session.userId,
+      encrypted,
+      expiresAt
+    );
     const user = await db.getUserById(req.session.userId);
     const base32 = totp.base32Encode(Buffer.from(secret, 'hex'));
     const otpauth = `otpauth://totp/WebTaskTracker:${encodeURIComponent(
@@ -458,7 +474,7 @@ app.post('/api/enable-2fa', requireAuth, async (req, res) => {
     const qr =
       'https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=' +
       encodeURIComponent(otpauth);
-    res.json({ secret: base32, qr });
+    res.json({ secret: base32, qr, expiresAt });
   } catch (err) {
     handleError(res, err, 'Failed to enable 2FA');
   }
@@ -466,7 +482,7 @@ app.post('/api/enable-2fa', requireAuth, async (req, res) => {
 
 app.post('/api/disable-2fa', requireAuth, async (req, res) => {
   try {
-    await db.setUserTwoFactorSecret(req.session.userId, null);
+    await db.setUserTwoFactorSecret(req.session.userId, null, null);
     res.json({ ok: true });
   } catch (err) {
     handleError(res, err, 'Failed to disable 2FA');

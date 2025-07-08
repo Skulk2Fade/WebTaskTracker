@@ -104,8 +104,10 @@ test('two factor authentication flow', async () => {
   expect(res.status).toBe(200);
   const secret = res.body.secret;
   const qr = res.body.qr;
+  const expiresAt = res.body.expiresAt;
   expect(secret).toBeTruthy();
   expect(qr).toMatch(/^https:\/\//);
+  expect(new Date(expiresAt).getTime()).toBeGreaterThan(Date.now());
 
   token = await getCsrfToken(agent);
   await agent.post('/api/logout').set('CSRF-Token', token);

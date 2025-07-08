@@ -71,9 +71,10 @@ While logged in, send:
 POST /api/enable-2fa
 ```
 
-The response contains a `secret` in base32 format and a `qr` URL that can be
-used to generate a QR code for your authenticator app. The server encrypts the
-secret before storing it. When
+The response contains a `secret` in base32 format, a `qr` URL that can be
+used to generate a QR code for your authenticator app and an `expiresAt`
+timestamp. The server encrypts the secret before storing it and the secret is
+only valid for a short time. When
 2FA is enabled you must include a `token` field with the current code alongside
 your username and password when calling `/api/login`.
 
