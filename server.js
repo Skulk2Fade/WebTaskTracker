@@ -165,6 +165,35 @@ function isValidFutureDateTime(dateStr, timeStr) {
   return due >= now;
 }
 
+function getNextRepeatDate(dateStr, interval) {
+  if (!dateStr) return null;
+  const date = new Date(dateStr + 'T00:00:00Z');
+  if (isNaN(date.getTime())) return null;
+  if (interval === 'daily') {
+    date.setUTCDate(date.getUTCDate() + 1);
+  } else if (interval === 'weekly') {
+    date.setUTCDate(date.getUTCDate() + 7);
+  } else if (interval === 'monthly') {
+    date.setUTCMonth(date.getUTCMonth() + 1);
+  } else if (interval === 'weekday') {
+    date.setUTCDate(date.getUTCDate() + 1);
+    const day = date.getUTCDay();
+    if (day === 6) {
+      date.setUTCDate(date.getUTCDate() + 2);
+    } else if (day === 0) {
+      date.setUTCDate(date.getUTCDate() + 1);
+    }
+  } else if (interval === 'last_day') {
+    const next = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 2, 0)
+    );
+    return next.toISOString().slice(0, 10);
+  } else {
+    return null;
+  }
+  return date.toISOString().slice(0, 10);
+}
+
 function isStrongPassword(pw) {
   return (
     typeof pw === 'string' &&
@@ -899,7 +928,9 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
     repeatInterval !== undefined &&
     repeatInterval !== null &&
     repeatInterval !== '' &&
-    !['daily', 'weekly', 'monthly'].includes(repeatInterval)
+    !['daily', 'weekly', 'monthly', 'weekday', 'last_day'].includes(
+      repeatInterval
+    )
   ) {
     return res.status(400).json({ error: 'Invalid repeat interval' });
   }
@@ -998,7 +1029,9 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     repeatInterval !== undefined &&
     repeatInterval !== null &&
     repeatInterval !== '' &&
-    !['daily', 'weekly', 'monthly'].includes(repeatInterval)
+    !['daily', 'weekly', 'monthly', 'weekday', 'last_day'].includes(
+      repeatInterval
+    )
   ) {
     return res.status(400).json({ error: 'Invalid repeat interval' });
   }
@@ -1053,27 +1086,24 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
       updated.repeatInterval &&
       updated.dueDate
     ) {
-      const date = new Date(updated.dueDate + 'T00:00:00Z');
-      if (updated.repeatInterval === 'daily') {
-        date.setUTCDate(date.getUTCDate() + 1);
-      } else if (updated.repeatInterval === 'weekly') {
-        date.setUTCDate(date.getUTCDate() + 7);
-      } else if (updated.repeatInterval === 'monthly') {
-        date.setUTCMonth(date.getUTCMonth() + 1);
+      const nextDue = getNextRepeatDate(
+        updated.dueDate,
+        updated.repeatInterval
+      );
+      if (nextDue) {
+        await db.createTask({
+          text: updated.text,
+          dueDate: nextDue,
+          dueTime: updated.dueTime,
+          priority: updated.priority,
+          status: 'todo',
+          category: updated.category,
+          done: false,
+          userId: updated.userId,
+          assignedTo: updated.assignedTo,
+          repeatInterval: updated.repeatInterval
+        });
       }
-      const nextDue = date.toISOString().slice(0, 10);
-      await db.createTask({
-        text: updated.text,
-        dueDate: nextDue,
-        dueTime: updated.dueTime,
-        priority: updated.priority,
-        status: 'todo',
-        category: updated.category,
-        done: false,
-        userId: updated.userId,
-        assignedTo: updated.assignedTo,
-        repeatInterval: updated.repeatInterval
-      });
     }
     res.json(updated);
   } catch (err) {

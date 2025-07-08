@@ -8,7 +8,7 @@ Results can be paginated with `page` and `pageSize` query parameters to more eas
 
 Tasks can be assigned to another user using `POST /api/tasks/:id/assign` with a `username` in the request body. Assigned tasks will appear in that user's task list.
 You can also discuss tasks by adding comments using `POST /api/tasks/:taskId/comments` and view them with `GET /api/tasks/:taskId/comments`.
-Tasks may optionally repeat on a daily, weekly or monthly schedule by including a `repeatInterval` when creating them. Completing a repeating task automatically schedules the next occurrence.
+Tasks may optionally repeat on a daily, weekly, monthly, weekday or last-day schedule by including a `repeatInterval` when creating them. Completing a repeating task automatically schedules the next occurrence.
 
 Users have roles of either `admin` or `member`. The first account created becomes the admin. Once an admin exists, only admins can create additional users, assign tasks or delete tasks.
 For a full list of endpoints see the [API reference](docs/api-reference.md) and the machine-readable [OpenAPI specification](docs/openapi.yaml).
