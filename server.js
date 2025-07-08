@@ -37,6 +37,31 @@ if (enableGoogle || enableGithub) {
 }
 const app = express();
 
+const isTestEnv = process.env.NODE_ENV === 'test';
+const rateCounters = new Map();
+
+function rateLimiter(windowMs, max) {
+  return (req, res, next) => {
+    if (isTestEnv) return next();
+    const now = Date.now();
+    const key = req.ip;
+    let entry = rateCounters.get(key);
+    if (!entry || now - entry.start > windowMs) {
+      entry = { start: now, count: 1 };
+    } else {
+      entry.count += 1;
+    }
+    rateCounters.set(key, entry);
+    if (entry.count > max) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    next();
+  };
+}
+
+const apiLimiter = rateLimiter(15 * 60 * 1000, 100);
+const loginLimiter = rateLimiter(15 * 60 * 1000, 10);
+
 // Simple Server-Sent Events implementation
 const sseClients = new Map();
 
@@ -187,6 +212,7 @@ if (passport) {
   });
 }
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', apiLimiter);
 app.use(csurf());
 
 if (passport) {
@@ -366,7 +392,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { username, password, token } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -376,15 +402,26 @@ app.post('/api/login', async (req, res) => {
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+    if (user.lockUntil && new Date(user.lockUntil) > new Date()) {
+      return res.status(403).json({ error: 'Account locked. Try again later' });
+    }
     const match = await bcrypt.compare(password, user.password);
-    if (!match) {
+    let valid = match;
+    if (valid && user.twofaSecret) {
+      valid = totp.verifyToken(token, user.twofaSecret);
+    }
+    if (!valid) {
+      const updated = await db.incrementFailedLoginAttempts(user.id);
+      if (updated.failedLoginAttempts >= 5) {
+        const until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        await db.lockAccount(user.id, until);
+        return res
+          .status(429)
+          .json({ error: 'Account locked. Too many failed attempts' });
+      }
       return res.status(400).json({ error: 'Invalid credentials' });
     }
-    if (user.twofaSecret) {
-      if (!totp.verifyToken(token, user.twofaSecret)) {
-        return res.status(400).json({ error: 'Invalid 2FA token' });
-      }
-    }
+    await db.resetFailedLoginAttempts(user.id);
     req.session.userId = user.id;
     res.json({ id: user.id, username: user.username, role: user.role });
   } catch (err) {

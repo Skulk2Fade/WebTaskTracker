@@ -16,7 +16,9 @@ db.serialize(() => {
     emailReminders INTEGER NOT NULL DEFAULT 1,
     emailNotifications INTEGER NOT NULL DEFAULT 1,
     googleId TEXT UNIQUE,
-    githubId TEXT UNIQUE
+    githubId TEXT UNIQUE,
+    failedLoginAttempts INTEGER NOT NULL DEFAULT 0,
+    lockUntil TEXT
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS tasks (
@@ -153,6 +155,12 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'githubId')) {
       db.run('ALTER TABLE users ADD COLUMN githubId TEXT UNIQUE');
+    }
+    if (!cols.some(c => c.name === 'failedLoginAttempts')) {
+      db.run('ALTER TABLE users ADD COLUMN failedLoginAttempts INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!cols.some(c => c.name === 'lockUntil')) {
+      db.run('ALTER TABLE users ADD COLUMN lockUntil TEXT');
     }
   });
 });
@@ -1028,6 +1036,45 @@ function updateUserPreferences(id, { emailReminders, emailNotifications }) {
   });
 }
 
+function incrementFailedLoginAttempts(id) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET failedLoginAttempts = failedLoginAttempts + 1 WHERE id = ?`,
+      [id],
+      function (err) {
+        if (err) return reject(err);
+        getUserById(id).then(resolve).catch(reject);
+      }
+    );
+  });
+}
+
+function resetFailedLoginAttempts(id) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET failedLoginAttempts = 0 WHERE id = ?`,
+      [id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+  });
+}
+
+function lockAccount(id, until) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE users SET lockUntil = ?, failedLoginAttempts = 0 WHERE id = ?`,
+      [until, id],
+      function (err) {
+        if (err) return reject(err);
+        resolve();
+      }
+    );
+  });
+}
+
 function createGroup(name) {
   return new Promise((resolve, reject) => {
     db.run(
@@ -1201,6 +1248,9 @@ module.exports = {
   getReports,
   createHistory,
   listHistory,
+  incrementFailedLoginAttempts,
+  resetFailedLoginAttempts,
+  lockAccount,
   getUserByGoogleId,
   getUserByGithubId,
   setUserGoogleId,
