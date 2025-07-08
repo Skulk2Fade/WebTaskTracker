@@ -282,6 +282,62 @@ test('recurring task creates next occurrence when completed', async () => {
   expect(dates).toContain('2099-01-02');
 });
 
+test('weekday recurring task skips weekends', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'week', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'WD', dueDate: '2099-01-02', repeatInterval: 'weekday' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+
+  res = await agent.get('/api/tasks?sort=dueDate');
+  const dates = res.body.map(t => t.dueDate).sort();
+  expect(dates).toContain('2099-01-02');
+  expect(dates).toContain('2099-01-05');
+});
+
+test('last day recurring task uses last day of next month', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'month', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'LD', dueDate: '2099-01-31', repeatInterval: 'last_day' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+
+  res = await agent.get('/api/tasks?sort=dueDate');
+  const dates = res.body.map(t => t.dueDate).sort();
+  expect(dates).toContain('2099-01-31');
+  expect(dates).toContain('2099-02-28');
+});
+
 test('bulk update and delete', async () => {
   const agent = request.agent(app);
 
