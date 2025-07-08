@@ -10,6 +10,7 @@ const csurf = require('csurf');
 const totp = require('./totp');
 const email = require('./email');
 const webhooks = require('./webhooks');
+const { tasksToIcs } = require('./icsUtil');
 let passport;
 let GoogleStrategy;
 let GitHubStrategy;
@@ -749,31 +750,6 @@ function fromCsv(text) {
   return tasks;
 }
 
-function toIcs(tasks) {
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//WebTaskTracker//EN'];
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  for (const t of tasks) {
-    lines.push('BEGIN:VTODO');
-    lines.push(`UID:${t.id}@webtasktracker`);
-    lines.push('DTSTAMP:' + stamp);
-    if (t.dueDate && t.dueTime) {
-      const dt = new Date(`${t.dueDate}T${t.dueTime}:00Z`);
-      const due = dt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-      lines.push('DUE:' + due);
-    } else if (t.dueDate) {
-      lines.push('DUE;VALUE=DATE:' + t.dueDate.replace(/-/g, ''));
-    }
-    if (t.priority) {
-      const p = t.priority === 'high' ? 1 : t.priority === 'medium' ? 5 : 9;
-      lines.push('PRIORITY:' + p);
-    }
-    lines.push('STATUS:' + (t.done ? 'COMPLETED' : 'NEEDS-ACTION'));
-    lines.push('SUMMARY:' + (t.text || '').replace(/\r?\n/g, ' '));
-    lines.push('END:VTODO');
-  }
-  lines.push('END:VCALENDAR');
-  return lines.join('\r\n');
-}
 
 app.get('/api/tasks/export', requireAuth, async (req, res) => {
   const format = req.query.format === 'csv' ? 'csv' : 'json';
@@ -797,7 +773,7 @@ app.get('/api/tasks/ics', requireAuth, async (req, res) => {
     const tasks = await db.listTasks({ userId: req.session.userId });
     res.setHeader('Content-Type', 'text/calendar');
     res.setHeader('Content-Disposition', 'attachment; filename="tasks.ics"');
-    res.send(toIcs(tasks));
+    res.send(tasksToIcs(tasks));
   } catch (err) {
     handleError(res, err, 'Failed to export tasks');
   }
