@@ -93,6 +93,9 @@ POST /api/reset-password
 
 The same password strength rules apply when setting a new password.
 
+For security, reset tokens are hashed before being stored in the database so
+only the one-time value you receive can be used to change your password.
+
 ## CSRF Tokens
 
 The application uses CSRF protection on all non-GET requests. Obtain a token

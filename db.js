@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
@@ -945,10 +946,11 @@ function listHistory(taskId, userId) {
 }
 
 function createPasswordReset({ userId, token, expiresAt }) {
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT INTO password_resets (userId, token, expiresAt) VALUES (?, ?, ?)`,
-      [userId, token, expiresAt],
+      [userId, hashedToken, expiresAt],
       function (err) {
         if (err) return reject(err);
         resolve({ id: this.lastID, userId, token, expiresAt, used: 0 });
@@ -958,10 +960,11 @@ function createPasswordReset({ userId, token, expiresAt }) {
 }
 
 function getPasswordReset(token) {
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
   return new Promise((resolve, reject) => {
     db.get(
       `SELECT * FROM password_resets WHERE token = ?`,
-      [token],
+      [hashedToken],
       (err, row) => {
         if (err) return reject(err);
         resolve(row || null);
