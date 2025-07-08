@@ -124,6 +124,16 @@ db.serialize(() => {
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS time_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    taskId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    minutes INTEGER NOT NULL,
+    createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(taskId) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
   // Add indexes to speed up common queries
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)');
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)');
@@ -764,6 +774,64 @@ function getAttachment(id, userId) {
   });
 }
 
+function createTimeEntry(taskId, userId, minutes, actingUserId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (actingUserId !== undefined) {
+      sql +=
+        ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      params.push(actingUserId, actingUserId, actingUserId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      db.run(
+        'INSERT INTO time_entries (taskId, userId, minutes) VALUES (?, ?, ?)',
+        [taskId, userId, minutes],
+        function (err2) {
+          if (err2) return reject(err2);
+          db.get(
+            'SELECT * FROM time_entries WHERE id = ?',
+            [this.lastID],
+            (err3, row2) => {
+              if (err3) return reject(err3);
+              resolve(row2);
+            }
+          );
+        }
+      );
+    });
+  });
+}
+
+function listTimeEntries(taskId, filterUserId, actingUserId) {
+  return new Promise((resolve, reject) => {
+    const params = [taskId];
+    let sql = 'SELECT id FROM tasks WHERE id = ?';
+    if (actingUserId !== undefined) {
+      sql +=
+        ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?))';
+      params.push(actingUserId, actingUserId, actingUserId);
+    }
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      if (!row) return resolve(null);
+      const qParams = [taskId];
+      let query =
+        'SELECT time_entries.*, users.username FROM time_entries JOIN users ON users.id = time_entries.userId WHERE time_entries.taskId = ?';
+      if (filterUserId !== undefined) {
+        query += ' AND time_entries.userId = ?';
+        qParams.push(filterUserId);
+      }
+      db.all(query, qParams, (err2, rows) => {
+        if (err2) return reject(err2);
+        resolve(rows);
+      });
+    });
+  });
+}
+
 function createSubtask(taskId, { text, done = false }, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -1310,6 +1378,8 @@ module.exports = {
   listTaskAttachments,
   listCommentAttachments,
   getAttachment,
+  createTimeEntry,
+  listTimeEntries,
   listDependencies,
   addDependency,
   removeDependency,

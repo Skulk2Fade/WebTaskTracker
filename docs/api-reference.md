@@ -33,6 +33,12 @@ Update fields on an existing task.
 ### `DELETE /api/tasks/{id}`
 Remove a task. Requires admin privileges.
 
+### `POST /api/tasks/{id}/time`
+Log minutes spent on a task by the current user.
+
+### `GET /api/tasks/{id}/time`
+List all recorded time entries for a task.
+
 ## Reminders
 
 ### `GET /api/reminders`

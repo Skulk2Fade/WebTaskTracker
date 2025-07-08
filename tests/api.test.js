@@ -1043,3 +1043,32 @@ test('custom task statuses', async () => {
   expect(res.body.status).toBe('blocked');
 });
 
+test('task time tracking', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'timer', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Timed' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/tasks/${taskId}/time`)
+    .set('CSRF-Token', token)
+    .send({ minutes: 15 });
+  expect(res.status).toBe(201);
+
+  res = await agent.get(`/api/tasks/${taskId}/time`);
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].minutes).toBe(15);
+});
+
