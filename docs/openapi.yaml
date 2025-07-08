@@ -135,6 +135,49 @@ paths:
       responses:
         '200':
           description: Task deleted
+
+  /api/tasks/{id}/time:
+    post:
+      summary: Log time on a task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                minutes:
+                  type: integer
+      responses:
+        '201':
+          description: Time entry created
+    get:
+      summary: List time entries for a task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: userId
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of time entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeEntry'
 components:
   schemas:
     User:
@@ -182,3 +225,17 @@ components:
           type: string
         done:
           type: boolean
+    TimeEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        userId:
+          type: integer
+        minutes:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time

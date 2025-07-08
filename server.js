@@ -1523,6 +1523,43 @@ app.get('/api/attachments/:id', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/tasks/:taskId/time', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const minutes = parseInt(req.body.minutes);
+  if (!Number.isInteger(minutes) || minutes <= 0) {
+    return res.status(400).json({ error: 'minutes must be a positive integer' });
+  }
+  try {
+    const entry = await db.createTimeEntry(
+      taskId,
+      req.session.userId,
+      minutes,
+      req.session.userId
+    );
+    if (!entry) return res.status(404).json({ error: 'Task not found' });
+    res.status(201).json(entry);
+  } catch (err) {
+    handleError(res, err, 'Failed to save time entry');
+  }
+});
+
+app.get('/api/tasks/:taskId/time', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const filterUser = req.query.userId ? parseInt(req.query.userId) : undefined;
+  try {
+    const entries = await db.listTimeEntries(
+      taskId,
+      filterUser,
+      req.session.userId
+    );
+    if (entries === null)
+      return res.status(404).json({ error: 'Task not found' });
+    res.json(entries);
+  } catch (err) {
+    handleError(res, err, 'Failed to load time entries');
+  }
+});
+
 app.get('/api/tasks/:id/history', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   try {

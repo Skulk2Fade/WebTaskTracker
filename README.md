@@ -245,6 +245,17 @@ written with `0600` permissions for your user only. The maximum allowed size can
 be configured with the `MAX_ATTACHMENT_SIZE` environment variable (bytes,
 default `10485760`). Requests exceeding the limit return a `413` response.
 
+## Time Tracking
+
+Track how long tasks take by logging minutes spent.
+
+```
+POST /api/tasks/:taskId/time
+{ "minutes": 30 }
+
+GET /api/tasks/:taskId/time
+```
+
 ## Markdown Formatting
 
 Task text and comment bodies support basic Markdown formatting. When viewing
