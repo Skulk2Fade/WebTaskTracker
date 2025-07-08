@@ -256,7 +256,9 @@ GET /api/tasks/ics
 ```
 
 The endpoint returns a standard `.ics` file that can be imported into clients
-like Google Calendar so your tasks appear alongside other events. Each entry now
+like Google Calendar so your tasks appear alongside other events. The feed is
+generated using a small library module to handle the required escaping and line
+folding rules of the specification. Each entry now
 includes `PRIORITY` and `STATUS` fields so you can see task importance and
 whether it has been completed directly in your calendar.
 
