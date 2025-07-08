@@ -11,7 +11,7 @@ const { encrypt, decrypt } = require('./cryptoUtil');
 const totp = require('./totp');
 const email = require('./email');
 const webhooks = require('./webhooks');
-const { tasksToIcs } = require('./icsUtil');
+const { tasksToIcs, fromIcs } = require('./icsUtil');
 let passport;
 let GoogleStrategy;
 let GitHubStrategy;
@@ -136,7 +136,9 @@ if (ATTACHMENT_DIR) {
 }
 
 app.use(express.json());
-app.use(express.text({ type: ['text/csv', 'application/csv'] }));
+app.use(
+  express.text({ type: ['text/csv', 'application/csv', 'text/calendar'] })
+);
 
 function isValidFutureDate(str) {
   if (str === undefined || str === null || str === '') return true;
@@ -859,11 +861,19 @@ app.get('/api/tasks/ics', requireAuth, async (req, res) => {
 });
 
 app.post('/api/tasks/import', requireAuth, async (req, res) => {
-  const format = req.headers['content-type'] && req.headers['content-type'].includes('csv') ? 'csv' : 'json';
+  const ct = req.headers['content-type'] || '';
+  let format = 'json';
+  if (ct.includes('csv')) {
+    format = 'csv';
+  } else if (ct.includes('calendar') || ct.includes('ics')) {
+    format = 'ics';
+  }
   try {
     let tasks = [];
     if (format === 'csv') {
       tasks = fromCsv(req.body || '');
+    } else if (format === 'ics') {
+      tasks = fromIcs(req.body || '');
     } else if (Array.isArray(req.body)) {
       tasks = req.body;
     } else if (req.body && Array.isArray(req.body.tasks)) {
