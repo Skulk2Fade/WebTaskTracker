@@ -120,6 +120,9 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/octet-stream'
 ]);
 
+const MAX_ATTACHMENT_SIZE =
+  parseInt(process.env.MAX_ATTACHMENT_SIZE, 10) || 10 * 1024 * 1024; // 10MB
+
 const ATTACHMENT_DIR = process.env.ATTACHMENT_DIR;
 if (ATTACHMENT_DIR) {
   const resolved = path.resolve(ATTACHMENT_DIR);
@@ -1284,6 +1287,9 @@ app.post('/api/tasks/:taskId/attachments', requireAuth, async (req, res) => {
   if (!isAllowedMimeType(mimeType)) {
     return res.status(400).json({ error: 'Unsupported mime type' });
   }
+  if (Buffer.byteLength(content, 'base64') > MAX_ATTACHMENT_SIZE) {
+    return res.status(413).json({ error: 'Attachment exceeds size limit' });
+  }
   try {
     const att = await db.createTaskAttachment(
       taskId,
@@ -1308,8 +1314,22 @@ app.post('/api/tasks/:taskId/attachments/upload', requireAuth, async (req, res) 
   }
   const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
   const stream = fs.createWriteStream(temp, { mode: 0o600 });
+  let uploaded = 0;
+  let aborted = false;
+  req.on('data', chunk => {
+    uploaded += chunk.length;
+    if (uploaded > MAX_ATTACHMENT_SIZE && !aborted) {
+      aborted = true;
+      req.unpipe(stream);
+      stream.destroy();
+      fs.unlink(temp, () => {});
+      res.status(413).json({ error: 'Attachment exceeds size limit' });
+      req.destroy();
+    }
+  });
   req.pipe(stream);
   stream.on('finish', async () => {
+    if (aborted) return;
     try {
       const att = await db.createTaskAttachment(taskId, { filename, mimeType, filePath: temp }, req.session.userId);
       if (!att) {
@@ -1348,6 +1368,9 @@ app.post('/api/comments/:commentId/attachments', requireAuth, async (req, res) =
   if (!isAllowedMimeType(mimeType)) {
     return res.status(400).json({ error: 'Unsupported mime type' });
   }
+  if (Buffer.byteLength(content, 'base64') > MAX_ATTACHMENT_SIZE) {
+    return res.status(413).json({ error: 'Attachment exceeds size limit' });
+  }
   try {
     const att = await db.createCommentAttachment(
       commentId,
@@ -1372,8 +1395,22 @@ app.post('/api/comments/:commentId/attachments/upload', requireAuth, async (req,
   }
   const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
   const stream = fs.createWriteStream(temp, { mode: 0o600 });
+  let uploaded = 0;
+  let aborted = false;
+  req.on('data', chunk => {
+    uploaded += chunk.length;
+    if (uploaded > MAX_ATTACHMENT_SIZE && !aborted) {
+      aborted = true;
+      req.unpipe(stream);
+      stream.destroy();
+      fs.unlink(temp, () => {});
+      res.status(413).json({ error: 'Attachment exceeds size limit' });
+      req.destroy();
+    }
+  });
   req.pipe(stream);
   stream.on('finish', async () => {
+    if (aborted) return;
     try {
       const att = await db.createCommentAttachment(commentId, { filename, mimeType, filePath: temp }, req.session.userId);
       if (!att) {

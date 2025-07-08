@@ -232,7 +232,9 @@ GET /api/attachments/:id
 
 Streaming uploads require `ATTACHMENT_DIR` to point to a writable directory.
 Uploaded files are validated against a small list of safe MIME types and are
-written with `0600` permissions for your user only.
+written with `0600` permissions for your user only. The maximum allowed size can
+be configured with the `MAX_ATTACHMENT_SIZE` environment variable (bytes,
+default `10485760`). Requests exceeding the limit return a `413` response.
 
 ## Markdown Formatting
 
