@@ -176,6 +176,10 @@ instant updates when tasks are assigned to you, commented on or become due.
 Each event payload includes a `type` field of `task_assigned`, `task_commented`
 or `task_due` along with basic task information.
 
+If you grant notification permission in your browser, the service worker will
+display a push notification whenever a new event is received, even when the
+tab is not focused.
+
 ## Notification Preferences
 
 Each user can control whether they receive email reminders or notification
