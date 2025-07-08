@@ -16,6 +16,7 @@ db.serialize(() => {
     twofaSecret TEXT,
     emailReminders INTEGER NOT NULL DEFAULT 1,
     emailNotifications INTEGER NOT NULL DEFAULT 1,
+    timezone TEXT NOT NULL DEFAULT 'UTC',
     googleId TEXT UNIQUE,
     githubId TEXT UNIQUE,
     failedLoginAttempts INTEGER NOT NULL DEFAULT 0,
@@ -156,6 +157,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'githubId')) {
       db.run('ALTER TABLE users ADD COLUMN githubId TEXT UNIQUE');
+    }
+    if (!cols.some(c => c.name === 'timezone')) {
+      db.run("ALTER TABLE users ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'");
     }
     if (!cols.some(c => c.name === 'failedLoginAttempts')) {
       db.run('ALTER TABLE users ADD COLUMN failedLoginAttempts INTEGER NOT NULL DEFAULT 0');
@@ -793,11 +797,12 @@ function createUser({
   emailReminders = 1,
   emailNotifications = 1,
   googleId = null,
-  githubId = null
+  githubId = null,
+  timezone = 'UTC'
 }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, googleId, githubId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, googleId, githubId, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         username,
         password,
@@ -806,7 +811,8 @@ function createUser({
         emailReminders,
         emailNotifications,
         googleId,
-        githubId
+        githubId,
+        timezone
       ],
       function (err) {
         if (err) return reject(err);
@@ -819,7 +825,8 @@ function createUser({
           emailReminders,
           emailNotifications,
           googleId,
-          githubId
+          githubId,
+          timezone
         });
       }
     );
@@ -888,11 +895,21 @@ function setUserGithubId(id, githubId) {
   });
 }
 
-function getDueSoonTasks(userId) {
+function getDueSoonTasks(userId, timezone = 'UTC') {
   return new Promise((resolve, reject) => {
     const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10);
-    const timeStr = now.toISOString().slice(11, 16);
+    const dateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(now);
+    const timeStr = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(now);
     const params = [dateStr, dateStr, timeStr, userId, userId, userId, dateStr];
     const sql =
       'SELECT * FROM tasks WHERE dueDate IS NOT NULL AND done = 0 AND (dueDate < ? OR (dueDate = ? AND (dueTime IS NULL OR dueTime <= ?))) AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?)) AND (lastReminderDate IS NULL OR lastReminderDate < ?)';
@@ -1012,7 +1029,7 @@ function setUserTwoFactorSecret(id, secret) {
   });
 }
 
-function updateUserPreferences(id, { emailReminders, emailNotifications }) {
+function updateUserPreferences(id, { emailReminders, emailNotifications, timezone }) {
   return new Promise((resolve, reject) => {
     const fields = [];
     const params = [];
@@ -1023,6 +1040,10 @@ function updateUserPreferences(id, { emailReminders, emailNotifications }) {
     if (emailNotifications !== undefined) {
       fields.push('emailNotifications = ?');
       params.push(emailNotifications ? 1 : 0);
+    }
+    if (timezone !== undefined) {
+      fields.push('timezone = ?');
+      params.push(timezone);
     }
     if (fields.length === 0) {
       return getUserById(id).then(resolve).catch(reject);
@@ -1129,7 +1150,7 @@ function countUsers() {
 function listUsers() {
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT id, username, role, emailReminders, emailNotifications FROM users`,
+      `SELECT id, username, role, emailReminders, emailNotifications, timezone FROM users`,
       (err, rows) => {
         if (err) return reject(err);
         resolve(rows || []);

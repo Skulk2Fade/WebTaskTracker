@@ -22,7 +22,39 @@ function foldLine(line) {
   return out;
 }
 
-function tasksToIcs(tasks) {
+function tzOffset(date, tz) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = fmt.formatToParts(date);
+  const get = t => Number(parts.find(p => p.type === t).value);
+  const asUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second')
+  );
+  return (asUtc - date.getTime()) / 60000;
+}
+
+function localToUtc(dateStr, timeStr, tz) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = timeStr.split(':').map(Number);
+  const asUtc = new Date(Date.UTC(y, m - 1, d, hh, mm));
+  const offset = tzOffset(asUtc, tz);
+  return new Date(asUtc.getTime() - offset * 60000);
+}
+
+function tasksToIcs(tasks, timezone = 'UTC') {
   const cal = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//WebTaskTracker//EN'];
   const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   for (const t of tasks) {
@@ -30,7 +62,8 @@ function tasksToIcs(tasks) {
     cal.push(foldLine('UID:' + t.id + '@webtasktracker'));
     cal.push('DTSTAMP:' + stamp);
     if (t.dueDate && t.dueTime) {
-      const due = new Date(`${t.dueDate}T${t.dueTime}:00Z`).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const dueUtc = localToUtc(t.dueDate, t.dueTime, timezone);
+      const due = dueUtc.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
       cal.push('DUE:' + due);
     } else if (t.dueDate) {
       cal.push('DUE;VALUE=DATE:' + t.dueDate.replace(/-/g, ''));

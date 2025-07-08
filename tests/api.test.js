@@ -391,6 +391,32 @@ test('ICS feed returns calendar data', async () => {
   expect(res.text).toMatch(/SUMMARY:ICS Task/);
 });
 
+test('ICS uses user timezone', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'tzuser', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .put('/api/preferences')
+    .set('CSRF-Token', token)
+    .send({ timezone: 'America/Los_Angeles' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'TZ Task', dueDate: '2099-12-31', dueTime: '12:00' });
+
+  const res = await agent.get('/api/tasks/ics');
+  expect(res.status).toBe(200);
+  expect(res.text).toMatch(/DUE:20991231T200000Z/);
+});
+
 test('email notifications on assign, comment and reminder', async () => {
   const alice = request.agent(app);
   const bob = request.agent(app);

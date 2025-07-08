@@ -91,7 +91,9 @@ async function checkDueSoon() {
   for (const id of Array.from(sseClients.keys())) {
     const uid = parseInt(id, 10);
     try {
-      const tasks = await db.getDueSoonTasks(uid);
+      const user = await db.getUserById(uid);
+      const tz = user && user.timezone ? user.timezone : 'UTC';
+      const tasks = await db.getDueSoonTasks(uid, tz);
       for (const t of tasks) {
         sendSse(uid, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate, dueTime: t.dueTime });
       }
@@ -566,7 +568,8 @@ app.get('/api/preferences', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({
       emailReminders: !!user.emailReminders,
-      emailNotifications: !!user.emailNotifications
+      emailNotifications: !!user.emailNotifications,
+      timezone: user.timezone || 'UTC'
     });
   } catch (err) {
     handleError(res, err, 'Failed to load preferences');
@@ -574,15 +577,17 @@ app.get('/api/preferences', requireAuth, async (req, res) => {
 });
 
 app.put('/api/preferences', requireAuth, async (req, res) => {
-  const { emailReminders, emailNotifications } = req.body;
+  const { emailReminders, emailNotifications, timezone } = req.body;
   try {
     const user = await db.updateUserPreferences(req.session.userId, {
       emailReminders,
-      emailNotifications
+      emailNotifications,
+      timezone
     });
     res.json({
       emailReminders: !!user.emailReminders,
-      emailNotifications: !!user.emailNotifications
+      emailNotifications: !!user.emailNotifications,
+      timezone: user.timezone || 'UTC'
     });
   } catch (err) {
     handleError(res, err, 'Failed to update preferences');
@@ -773,9 +778,11 @@ app.get('/api/tasks/export', requireAuth, async (req, res) => {
 app.get('/api/tasks/ics', requireAuth, async (req, res) => {
   try {
     const tasks = await db.listTasks({ userId: req.session.userId });
+    const user = await db.getUserById(req.session.userId);
+    const tz = user && user.timezone ? user.timezone : 'UTC';
     res.setHeader('Content-Type', 'text/calendar');
     res.setHeader('Content-Disposition', 'attachment; filename="tasks.ics"');
-    res.send(tasksToIcs(tasks));
+    res.send(tasksToIcs(tasks, tz));
   } catch (err) {
     handleError(res, err, 'Failed to export tasks');
   }
@@ -816,8 +823,9 @@ app.post('/api/tasks/import', requireAuth, async (req, res) => {
 
 app.get('/api/reminders', requireAuth, async (req, res) => {
   try {
-    const tasks = await db.getDueSoonTasks(req.session.userId);
     const user = await db.getUserById(req.session.userId);
+    const tz = user && user.timezone ? user.timezone : 'UTC';
+    const tasks = await db.getDueSoonTasks(req.session.userId, tz);
     if (user && user.emailReminders) {
       for (const t of tasks) {
         const dueStr = t.dueTime ? `${t.dueDate} ${t.dueTime}` : t.dueDate;
