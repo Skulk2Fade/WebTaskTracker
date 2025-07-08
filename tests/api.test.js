@@ -4,6 +4,7 @@ const path = require('path');
 
 const email = require('../email');
 const webhooks = require('../webhooks');
+const { tasksToIcs } = require('../icsUtil');
 
 process.env.WEBHOOK_URLS = 'http://example.com/hook';
 
@@ -505,6 +506,33 @@ test('ICS uses user timezone', async () => {
   const res = await agent.get('/api/tasks/ics');
   expect(res.status).toBe(200);
   expect(res.text).toMatch(/DUE:20991231T200000Z/);
+});
+
+test('import tasks from ICS', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'icsimp', password: 'Passw0rd!' });
+
+  const ics = tasksToIcs([
+    { id: 1, text: 'ICS Import', dueDate: '2099-12-31', priority: 'high' }
+  ]);
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  const res = await agent
+    .post('/api/tasks/import')
+    .set('CSRF-Token', token)
+    .set('Content-Type', 'text/calendar')
+    .send(ics);
+  expect(res.status).toBe(201);
+
+  const list = await agent.get('/api/tasks');
+  expect(list.body.length).toBe(1);
+  expect(list.body[0].text).toBe('ICS Import');
+  expect(list.body[0].priority).toBe('high');
 });
 
 test('email notifications on assign, comment and reminder', async () => {
