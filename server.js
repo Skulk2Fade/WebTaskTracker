@@ -101,7 +101,9 @@ async function checkDueSoon() {
   }
 }
 
-setInterval(checkDueSoon, 60000);
+const DUE_SOON_CHECK_INTERVAL =
+  parseInt(process.env.DUE_SOON_CHECK_INTERVAL, 10) || 60000;
+setInterval(checkDueSoon, DUE_SOON_CHECK_INTERVAL);
 
 // Use a higher bcrypt work factor for stronger password hashing.
 // Configurable via the BCRYPT_ROUNDS environment variable.

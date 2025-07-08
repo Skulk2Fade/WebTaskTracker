@@ -39,7 +39,8 @@ npm start
 The server will run on port 3000 by default if no `PORT` variable is set.
 You can configure the bcrypt work factor with the `BCRYPT_ROUNDS` environment
 variable (default `12`). Higher values provide stronger hashing but increase CPU
-usage.
+usage. The frequency of automatic reminder checks can be changed with the
+`DUE_SOON_CHECK_INTERVAL` environment variable (milliseconds, default `60000`).
 
 ## Authentication
 
