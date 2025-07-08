@@ -1,6 +1,18 @@
 let currentUser = null;
 let csrfToken = '';
 
+document.getElementById('board').addEventListener('keydown', e => {
+  if (e.target.tagName === 'LI') {
+    if (e.key === 'ArrowUp' && e.target.previousElementSibling) {
+      e.target.previousElementSibling.focus();
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown' && e.target.nextElementSibling) {
+      e.target.nextElementSibling.focus();
+      e.preventDefault();
+    }
+  }
+});
+
 async function updateCsrfToken() {
   const res = await fetch('/api/csrf-token');
   const data = await res.json();
@@ -38,6 +50,7 @@ async function fetchTasks() {
 
 function createTaskElement(task) {
   const li = document.createElement('li');
+  li.tabIndex = 0;
   li.draggable = true;
   li.dataset.id = task.id;
   const html = DOMPurify.sanitize(marked.parse(task.text));
@@ -144,6 +157,10 @@ document.getElementById('register-button').onclick = async () => {
   const password = document.getElementById('password-input').value;
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
+  if (!username || !password) {
+    errorEl.textContent = 'Username and password are required';
+    return;
+  }
   if (username && password) {
     const res = await fetch('/api/register', {
       method: 'POST',
@@ -174,6 +191,10 @@ async function handleLogin(event) {
   const password = document.getElementById('password-input').value;
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
+  if (!username || !password) {
+    errorEl.textContent = 'Username and password are required';
+    return;
+  }
   if (username && password) {
     await updateCsrfToken();
     const res = await fetch('/api/login', {

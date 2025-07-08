@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>Task Board</h1>
-    <nav>
+    <nav role="navigation" aria-label="Main Navigation">
       <a href="index.html">List View</a>
       <a href="calendar.html">Calendar View</a>
       <a id="admin-link" href="admin.html" style="display:none;">Admin Dashboard</a>
@@ -23,15 +23,15 @@
         <input type="text" id="username-input" placeholder="Username" autocomplete="username" required>
         <label for="password-input">Password</label>
         <input type="password" id="password-input" placeholder="Password" autocomplete="current-password" required>
-        <button id="login-button" type="submit">Login</button>
-        <button id="register-button" type="button">Register</button>
-        <button id="google-login" type="button">Login with Google</button>
-        <button id="github-login" type="button">Login with GitHub</button>
-        <div id="login-error" class="error" aria-live="polite"></div>
+        <button id="login-button" type="submit" aria-label="Login">Login</button>
+        <button id="register-button" type="button" aria-label="Register">Register</button>
+        <button id="google-login" type="button" aria-label="Login with Google">Login with Google</button>
+        <button id="github-login" type="button" aria-label="Login with GitHub">Login with GitHub</button>
+        <div id="login-error" class="error" aria-live="polite" role="alert"></div>
       </form>
       <div id="user-info" style="display:none;">
       Logged in as <span id="current-user"></span>
-      <button id="logout-button">Logout</button>
+      <button id="logout-button" aria-label="Logout">Logout</button>
     </div>
   </div>
   <div id="task-form">
@@ -49,7 +49,7 @@
       <option value="medium" selected>Medium</option>
       <option value="low">Low</option>
     </select>
-    <button id="add-button">Add</button>
+    <button id="add-button" aria-label="Add Task">Add</button>
   </div>
   <div id="board-controls">
     <label for="group-select">Group by</label>
