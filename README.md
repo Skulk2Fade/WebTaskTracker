@@ -160,8 +160,9 @@ GET /api/tasks/export?format=json|csv
 ```
 
 Import tasks by sending a POST request to `/api/tasks/import`. Send a JSON array
-of task objects or CSV data (set `Content-Type: text/csv`). Imported tasks are
-added to the currently authenticated user's list.
+of task objects, CSV data (`Content-Type: text/csv`), or an iCalendar file
+(`Content-Type: text/calendar`). Events within the calendar are converted to
+tasks and added to the currently authenticated user's list.
 
 ## Reminders
 
