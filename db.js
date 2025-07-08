@@ -14,6 +14,7 @@ db.serialize(() => {
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'member',
     twofaSecret TEXT,
+    twofaSecretExpiresAt TEXT,
     emailReminders INTEGER NOT NULL DEFAULT 1,
     emailNotifications INTEGER NOT NULL DEFAULT 1,
     timezone TEXT NOT NULL DEFAULT 'UTC',
@@ -165,6 +166,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'timezone')) {
       db.run("ALTER TABLE users ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'");
+    }
+    if (!cols.some(c => c.name === 'twofaSecretExpiresAt')) {
+      db.run('ALTER TABLE users ADD COLUMN twofaSecretExpiresAt TEXT');
     }
     if (!cols.some(c => c.name === 'failedLoginAttempts')) {
       db.run('ALTER TABLE users ADD COLUMN failedLoginAttempts INTEGER NOT NULL DEFAULT 0');
@@ -1021,11 +1025,11 @@ function updateUserPassword(id, password) {
   });
 }
 
-function setUserTwoFactorSecret(id, secret) {
+function setUserTwoFactorSecret(id, secret, expiresAt = null) {
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE users SET twofaSecret = ? WHERE id = ?`,
-      [secret, id],
+      `UPDATE users SET twofaSecret = ?, twofaSecretExpiresAt = ? WHERE id = ?`,
+      [secret, expiresAt, id],
       function (err) {
         if (err) return reject(err);
         resolve();
