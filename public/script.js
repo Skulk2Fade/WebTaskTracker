@@ -32,6 +32,16 @@ let csrfToken = '';
 let eventSource = null;
 const selectedTasks = new Set();
 
+async function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    try {
+      await Notification.requestPermission();
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
 document.getElementById('task-list').addEventListener('keydown', e => {
   if (e.target.tagName === 'LI') {
     if (e.key === 'ArrowUp' && e.target.previousElementSibling) {
@@ -63,6 +73,7 @@ async function checkAuth() {
   const adminLink = document.getElementById('admin-link');
   const notify = document.getElementById('notifications');
   if (currentUser) {
+    requestNotificationPermission();
     loginForm.style.display = 'none';
     userInfo.style.display = 'block';
     document.getElementById('current-user').textContent = currentUser.username;
@@ -81,14 +92,28 @@ async function checkAuth() {
       const li = document.createElement('li');
       if (data.type === 'task_assigned') {
         li.textContent = `Assigned: "${data.text}"`;
+        data._title = 'Task Assigned';
+        data._body = data.text;
       } else if (data.type === 'task_commented') {
         li.textContent = `New comment on task ${data.taskId}`;
+        data._title = 'New Comment';
+        data._body = `Task ${data.taskId} has a new comment`;
       } else if (data.type === 'task_due') {
         const due = data.dueTime ? `${data.dueDate} ${data.dueTime}` : data.dueDate;
         li.textContent = `Reminder: "${data.text}" due ${due}`;
+        data._title = 'Task Due';
+        data._body = `${data.text} due ${due}`;
       }
       container.style.display = 'block';
       container.appendChild(li);
+      if (
+        document.visibilityState === 'hidden' &&
+        navigator.serviceWorker &&
+        navigator.serviceWorker.controller &&
+        Notification.permission === 'granted'
+      ) {
+        navigator.serviceWorker.controller.postMessage({ type: 'notify', data });
+      }
     };
   } else {
     loginForm.style.display = 'block';

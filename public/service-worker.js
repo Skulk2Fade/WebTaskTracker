@@ -110,5 +110,10 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'flush') {
     event.waitUntil(flushQueue());
+  } else if (event.data && event.data.type === 'notify') {
+    const d = event.data.data || {};
+    const title = d._title || 'Task Update';
+    const body = d._body || '';
+    event.waitUntil(self.registration.showNotification(title, { body }));
   }
 });
