@@ -883,6 +883,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   const assignedTo = req.body.assignedTo;
   const groupId = req.body.groupId;
   const repeatInterval = req.body.repeatInterval;
+  const status = req.body.status || 'todo';
   let priority = req.body.priority || 'medium';
   priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
   if (!text) {
@@ -919,6 +920,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       dueDate,
       dueTime,
       priority,
+      status,
       category,
       done: false,
       userId: req.session.userId,
@@ -974,7 +976,7 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
 
 app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { text, dueDate, dueTime, priority, done, category, repeatInterval } = req.body;
+  const { text, dueDate, dueTime, priority, status, done, category, repeatInterval } = req.body;
   if (text !== undefined && !text.trim()) {
     return res.status(400).json({ error: 'Task text cannot be empty' });
   }
@@ -1020,7 +1022,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     }
     const updated = await db.updateTask(
       id,
-      { text, dueDate, dueTime, priority, done, category, repeatInterval },
+      { text, dueDate, dueTime, priority, status, done, category, repeatInterval },
       req.session.userId
     );
     if (!updated) {
@@ -1065,6 +1067,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
         dueDate: nextDue,
         dueTime: updated.dueTime,
         priority: updated.priority,
+        status: 'todo',
         category: updated.category,
         done: false,
         userId: updated.userId,
@@ -1079,11 +1082,11 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
 });
 
 app.put('/api/tasks/bulk', requireAuth, async (req, res) => {
-  const { ids, done, priority } = req.body;
+  const { ids, done, priority, status } = req.body;
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'ids required' });
   }
-  if (done === undefined && priority === undefined) {
+  if (done === undefined && priority === undefined && status === undefined) {
     return res.status(400).json({ error: 'No fields to update' });
   }
   if (priority !== undefined && !['high', 'medium', 'low'].includes(priority)) {
@@ -1094,7 +1097,11 @@ app.put('/api/tasks/bulk', requireAuth, async (req, res) => {
     for (const id of ids) {
       const updated = await db.updateTask(
         id,
-        { ...(done !== undefined ? { done } : {}), ...(priority !== undefined ? { priority } : {}) },
+        {
+          ...(done !== undefined ? { done } : {}),
+          ...(priority !== undefined ? { priority } : {}),
+          ...(status !== undefined ? { status } : {})
+        },
         req.session.userId
       );
       if (updated) results.push(updated);

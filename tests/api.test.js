@@ -83,6 +83,7 @@ test('register user and CRUD tasks', async () => {
     .set('CSRF-Token', token)
     .send({ text: 'Test Task', priority: 'high', dueDate: '2099-12-31', dueTime: '12:30', category: 'work' });
   expect(res.status).toBe(201);
+  expect(res.body.status).toBe('todo');
   const taskId = res.body.id;
 
   // list tasks
@@ -92,6 +93,7 @@ test('register user and CRUD tasks', async () => {
   expect(res.body[0].text).toBe('Test Task');
   expect(res.body[0].category).toBe('work');
   expect(res.body[0].dueTime).toBe('12:30');
+  expect(res.body[0].status).toBe('todo');
 
   // create subtask
   res = await agent
@@ -148,6 +150,7 @@ test('register user and CRUD tasks', async () => {
     .set('CSRF-Token', token)
     .send({ done: true });
   expect(res.body.done).toBe(true);
+  expect(res.body.status).toBe('completed');
 
   // delete subtask
   res = await agent
@@ -925,5 +928,32 @@ test('get single task with related data', async () => {
   expect(res.body.subtasks.length).toBe(1);
   expect(res.body.dependencies).toContain(depId);
   expect(res.body.comments.length).toBe(1);
+});
+
+test('custom task statuses', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'statususer', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Status Task', status: 'in progress' });
+  expect(res.status).toBe(201);
+  const taskId = res.body.id;
+  expect(res.body.status).toBe('in progress');
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ status: 'blocked' });
+  expect(res.status).toBe(200);
+  expect(res.body.status).toBe('blocked');
 });
 

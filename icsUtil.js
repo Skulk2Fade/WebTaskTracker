@@ -72,7 +72,14 @@ function tasksToIcs(tasks, timezone = 'UTC') {
       const p = t.priority === 'high' ? 1 : t.priority === 'medium' ? 5 : 9;
       cal.push('PRIORITY:' + p);
     }
-    cal.push('STATUS:' + (t.done ? 'COMPLETED' : 'NEEDS-ACTION'));
+    let status = t.status || (t.done ? 'completed' : 'todo');
+    const statusMap = {
+      todo: 'NEEDS-ACTION',
+      'in progress': 'IN-PROCESS',
+      blocked: 'NEEDS-ACTION',
+      completed: 'COMPLETED'
+    };
+    cal.push('STATUS:' + (statusMap[status.toLowerCase()] || 'NEEDS-ACTION'));
     cal.push(foldLine('SUMMARY:' + escapeText(t.text)));
     cal.push('END:VTODO');
   }
