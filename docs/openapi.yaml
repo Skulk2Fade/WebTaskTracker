@@ -1,0 +1,184 @@
+openapi: 3.0.0
+info:
+  title: Web Task Tracker API
+  version: 1.0.0
+  description: |
+    This OpenAPI specification documents the main REST endpoints exposed by the
+    Web Task Tracker application. It is not an exhaustive schema of every field
+    but provides a quick reference to the most commonly used operations.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /api/login:
+    post:
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                token:
+                  type: string
+                  description: Optional 2FA token if enabled
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /api/tasks:
+    get:
+      summary: List tasks for the current user
+      responses:
+        '200':
+          description: Array of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /api/tasks/{id}:
+    get:
+      summary: Get a single task with subtasks, dependencies and comments
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+    put:
+      summary: Update a task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+    delete:
+      summary: Delete a task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task deleted
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        role:
+          type: string
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        dueTime:
+          type: string
+          format: time
+        category:
+          type: string
+        priority:
+          type: string
+        done:
+          type: boolean
+    TaskInput:
+      type: object
+      properties:
+        text:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        dueTime:
+          type: string
+          format: time
+        category:
+          type: string
+        priority:
+          type: string
+        done:
+          type: boolean
