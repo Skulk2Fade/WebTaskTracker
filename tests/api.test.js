@@ -12,6 +12,7 @@ process.env.DB_FILE = TEST_DB;
 process.env.SESSION_SECRET = 'testsecret';
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 process.env.ATTACHMENT_DIR = UPLOAD_DIR;
+process.env.MAX_ATTACHMENT_SIZE = '20';
 
 let app;
 
@@ -614,6 +615,33 @@ test('streaming attachment upload', async () => {
 
   res = await agent.get(`/api/attachments/${attachId}`);
   expect(res.text).toBe('world');
+});
+
+test('attachment size limit enforced', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'limit', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'limit' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  const big = 'x'.repeat(25);
+  res = await agent
+    .post(`/api/tasks/${taskId}/attachments/upload`)
+    .set('CSRF-Token', token)
+    .set('X-Filename', 'big.txt')
+    .set('Content-Type', 'application/octet-stream')
+    .send(big);
+  expect(res.status).toBe(413);
 });
 
 test('notification preferences disable emails', async () => {
