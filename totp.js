@@ -1,5 +1,43 @@
 const crypto = require('crypto');
 
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Encode(buf) {
+  let bits = 0;
+  let value = 0;
+  let output = '';
+  for (const b of buf) {
+    value = (value << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  }
+  return output;
+}
+
+function base32Decode(str) {
+  const input = str.toUpperCase().replace(/=+$/, '');
+  let bits = 0;
+  let value = 0;
+  const output = [];
+  for (const ch of input) {
+    const idx = BASE32_ALPHABET.indexOf(ch);
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      output.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(output);
+}
+
 function generateSecret() {
   return crypto.randomBytes(20).toString('hex');
 }
@@ -27,4 +65,10 @@ function generateToken(secret) {
   return totpToken(secret);
 }
 
-module.exports = { generateSecret, verifyToken, generateToken };
+module.exports = {
+  generateSecret,
+  verifyToken,
+  generateToken,
+  base32Encode,
+  base32Decode
+};
