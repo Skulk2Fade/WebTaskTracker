@@ -30,6 +30,7 @@ db.serialize(() => {
     dueDate TEXT,
     dueTime TEXT,
     priority TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'todo',
     done INTEGER NOT NULL DEFAULT 0,
     userId INTEGER,
     category TEXT,
@@ -129,6 +130,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'groupId')) {
       db.run('ALTER TABLE tasks ADD COLUMN groupId INTEGER');
+    }
+    if (!cols.some(c => c.name === 'status')) {
+      db.run("ALTER TABLE tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'todo'");
     }
     if (!cols.some(c => c.name === 'dueTime')) {
       db.run('ALTER TABLE tasks ADD COLUMN dueTime TEXT');
@@ -269,14 +273,15 @@ function listTasks({
   });
 }
 
-function createTask({ text, dueDate, dueTime, priority = 'medium', done = false, userId, category, assignedTo, groupId, repeatInterval }) {
+function createTask({ text, dueDate, dueTime, priority = 'medium', status = 'todo', done = false, userId, category, assignedTo, groupId, repeatInterval }) {
+  status = status || (done ? 'completed' : 'todo');
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO tasks (text, dueDate, dueTime, priority, done, userId, category, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
-      [text, dueDate, dueTime, priority, done ? 1 : 0, userId, category, assignedTo, groupId, repeatInterval],
+      `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
+      [text, dueDate, dueTime, priority, status, done ? 1 : 0, userId, category, assignedTo, groupId, repeatInterval],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, dueTime, priority, done, userId, category, assignedTo, groupId, repeatInterval, lastReminderDate: null });
+        resolve({ id: this.lastID, text, dueDate, dueTime, priority, status, done, userId, category, assignedTo, groupId, repeatInterval, lastReminderDate: null });
       }
     );
   });
@@ -321,6 +326,10 @@ function updateTask(id, fields, userId) {
       updates.push('priority = ?');
       params.push(fields.priority);
     }
+    if (fields.status !== undefined) {
+      updates.push('status = ?');
+      params.push(fields.status);
+    }
     if (fields.category !== undefined) {
       updates.push('category = ?');
       params.push(fields.category);
@@ -332,6 +341,10 @@ function updateTask(id, fields, userId) {
     if (fields.done !== undefined) {
       updates.push('done = ?');
       params.push(fields.done ? 1 : 0);
+      if (fields.status === undefined) {
+        updates.push('status = ?');
+        params.push(fields.done ? 'completed' : 'todo');
+      }
       if (!fields.done) {
         updates.push('reminderSent = 0');
         updates.push('lastReminderDate = NULL');
