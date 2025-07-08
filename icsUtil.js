@@ -87,4 +87,61 @@ function tasksToIcs(tasks, timezone = 'UTC') {
   return cal.map(foldLine).join('\r\n');
 }
 
-module.exports = { tasksToIcs };
+function unfold(text) {
+  return text.replace(/\r?\n[ \t]/g, '');
+}
+
+function parseDateTime(val) {
+  val = val.replace(/Z$/, '');
+  if (val.includes('T')) {
+    const [d, t] = val.split('T');
+    const date = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+    const time = `${t.slice(0, 2)}:${t.slice(2, 4)}`;
+    return { dueDate: date, dueTime: time };
+  }
+  const date = `${val.slice(0, 4)}-${val.slice(4, 6)}-${val.slice(6, 8)}`;
+  return { dueDate: date };
+}
+
+function fromIcs(text) {
+  const lines = unfold(text).split(/\r?\n/);
+  const tasks = [];
+  let current = null;
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+    if (upper.startsWith('BEGIN:VTODO') || upper.startsWith('BEGIN:VEVENT')) {
+      current = {};
+    } else if (upper.startsWith('END:VTODO') || upper.startsWith('END:VEVENT')) {
+      if (current && current.text) tasks.push(current);
+      current = null;
+    } else if (current) {
+      const idx = line.indexOf(':');
+      if (idx === -1) continue;
+      const prop = line.slice(0, idx).split(';')[0].toUpperCase();
+      const value = line.slice(idx + 1).trim();
+      if (prop === 'SUMMARY') {
+        current.text = value;
+      } else if (prop === 'DUE' || prop === 'DTSTART') {
+        const dt = parseDateTime(value);
+        if (!current.dueDate && dt.dueDate) current.dueDate = dt.dueDate;
+        if (!current.dueTime && dt.dueTime) current.dueTime = dt.dueTime;
+      } else if (prop === 'PRIORITY') {
+        const n = parseInt(value, 10);
+        current.priority = n <= 2 ? 'high' : n <= 5 ? 'medium' : 'low';
+      } else if (prop === 'STATUS') {
+        const v = value.toUpperCase();
+        if (v === 'COMPLETED') {
+          current.done = true;
+          current.status = 'completed';
+        } else if (v === 'IN-PROCESS') {
+          current.status = 'in progress';
+        } else {
+          current.status = 'todo';
+        }
+      }
+    }
+  }
+  return tasks;
+}
+
+module.exports = { tasksToIcs, fromIcs };
