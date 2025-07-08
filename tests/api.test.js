@@ -209,6 +209,36 @@ test('advanced filtering', async () => {
   expect(res.body[0].id).toBe(id2);
 });
 
+test('filter by tags', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'taguser', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'T1', tags: ['a', 'b'] });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'T2', tags: ['b'] });
+
+  let res = await agent.get('/api/tasks?tags=a');
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].text).toBe('T1');
+
+  res = await agent.get('/api/tasks?tags=a,b');
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].text).toBe('T1');
+});
+
 test('assign task to another user', async () => {
   const alice = request.agent(app);
   const bob = request.agent(app);

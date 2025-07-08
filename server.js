@@ -686,7 +686,7 @@ app.get('/api/groups', requireAuth, async (req, res) => {
 
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { priority, done, sort, category, categories, search, startDate, endDate, page, pageSize } = req.query;
+  const { priority, done, sort, category, categories, tags, search, startDate, endDate, page, pageSize } = req.query;
   const pg = parseInt(page, 10) >= 1 ? parseInt(page, 10) : 1;
   const size = parseInt(pageSize, 10) >= 1 ? parseInt(pageSize, 10) : 20;
   try {
@@ -701,6 +701,12 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
             .split(',')
             .map(c => c.trim())
             .filter(c => c)
+        : undefined,
+      tags: tags
+        ? tags
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t)
         : undefined,
       search,
       startDate,
@@ -749,6 +755,7 @@ function toCsv(tasks) {
     'priority',
     'done',
     'category',
+    'tags',
     'assignedTo',
     'repeatInterval'
   ].join(',');
@@ -760,6 +767,7 @@ function toCsv(tasks) {
       escapeCsv(t.priority),
       escapeCsv(t.done ? 1 : 0),
       escapeCsv(t.category),
+      escapeCsv(Array.isArray(t.tags) ? t.tags.join(';') : t.tags),
       escapeCsv(t.assignedTo),
       escapeCsv(t.repeatInterval)
     ].join(',')
@@ -811,6 +819,9 @@ function fromCsv(text) {
     headers.forEach((h, idx) => {
       obj[h] = vals[idx];
     });
+    if (obj.tags) {
+      obj.tags = obj.tags.split(';').filter(t => t);
+    }
     tasks.push(obj);
   }
   return tasks;
@@ -869,6 +880,7 @@ app.post('/api/tasks/import', requireAuth, async (req, res) => {
         done: t.done === true || t.done === '1' || t.done === 'true',
         userId: req.session.userId,
         category: t.category || null,
+        tags: Array.isArray(t.tags) ? t.tags : typeof t.tags === 'string' ? t.tags.split(';').map(x => x.trim()).filter(x => x) : undefined,
         assignedTo: t.assignedTo || null,
         repeatInterval: t.repeatInterval || null
       });
@@ -909,6 +921,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
   const dueDate = req.body.dueDate;
   const dueTime = req.body.dueTime;
   const category = req.body.category;
+  const tags = req.body.tags;
   const assignedTo = req.body.assignedTo;
   const groupId = req.body.groupId;
   const repeatInterval = req.body.repeatInterval;
@@ -953,6 +966,7 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
       priority,
       status,
       category,
+      tags: Array.isArray(tags) ? tags : typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(t => t) : undefined,
       done: false,
       userId: req.session.userId,
       assignedTo: assigneeId,
@@ -1007,7 +1021,7 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
 
 app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { text, dueDate, dueTime, priority, status, done, category, repeatInterval } = req.body;
+  const { text, dueDate, dueTime, priority, status, done, category, tags, repeatInterval } = req.body;
   if (text !== undefined && !text.trim()) {
     return res.status(400).json({ error: 'Task text cannot be empty' });
   }
@@ -1055,7 +1069,7 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
     }
     const updated = await db.updateTask(
       id,
-      { text, dueDate, dueTime, priority, status, done, category, repeatInterval },
+      { text, dueDate, dueTime, priority, status, done, category, tags: Array.isArray(tags) ? tags : typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(t => t) : undefined, repeatInterval },
       req.session.userId
     );
     if (!updated) {
