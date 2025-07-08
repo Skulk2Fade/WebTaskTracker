@@ -6,6 +6,17 @@ const sqlite3 = require('sqlite3').verbose();
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
 const db = new sqlite3.Database(DB_FILE);
 
+function formatTags(tags) {
+  if (Array.isArray(tags)) return tags.join(',');
+  if (typeof tags === 'string') return tags;
+  return null;
+}
+
+function parseTags(str) {
+  if (!str) return [];
+  return str.split(',').filter(t => t);
+}
+
 // Initialize tables
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -38,7 +49,8 @@ db.serialize(() => {
     groupId INTEGER,
     reminderSent INTEGER NOT NULL DEFAULT 0,
     lastReminderDate TEXT,
-    repeatInterval TEXT
+    repeatInterval TEXT,
+    tags TEXT
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS subtasks (
@@ -146,6 +158,9 @@ db.serialize(() => {
     if (!cols.some(c => c.name === 'repeatInterval')) {
       db.run('ALTER TABLE tasks ADD COLUMN repeatInterval TEXT');
     }
+    if (!cols.some(c => c.name === 'tags')) {
+      db.run('ALTER TABLE tasks ADD COLUMN tags TEXT');
+    }
   });
 
   db.all("PRAGMA table_info(users)", (err, cols) => {
@@ -190,6 +205,7 @@ function listTasks({
   userId,
   category,
   categories,
+  tags,
   search,
   startDate,
   endDate,
@@ -261,27 +277,46 @@ function listTasks({
     db.all(query, params, async (err, rows) => {
       if (err) return reject(err);
       if (!rows) return resolve([]);
-      const tasksWithSub = await Promise.all(
+      let tasksWithSub = await Promise.all(
         rows.map(async r => ({
           ...r,
+          tags: parseTags(r.tags),
           subtasks: await listSubtasks(r.id, userId),
           dependencies: await listDependencies(r.id, userId)
         }))
       );
+      if (tags && tags.length) {
+        tasksWithSub = tasksWithSub.filter(t =>
+          tags.every(tag => t.tags.includes(tag))
+        );
+      }
       resolve(tasksWithSub);
     });
   });
 }
 
-function createTask({ text, dueDate, dueTime, priority = 'medium', status = 'todo', done = false, userId, category, assignedTo, groupId, repeatInterval }) {
+function createTask({
+  text,
+  dueDate,
+  dueTime,
+  priority = 'medium',
+  status = 'todo',
+  done = false,
+  userId,
+  category,
+  tags,
+  assignedTo,
+  groupId,
+  repeatInterval
+}) {
   status = status || (done ? 'completed' : 'todo');
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
-      [text, dueDate, dueTime, priority, status, done ? 1 : 0, userId, category, assignedTo, groupId, repeatInterval],
+      `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, tags, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
+      [text, dueDate, dueTime, priority, status, done ? 1 : 0, userId, category, formatTags(tags), assignedTo, groupId, repeatInterval],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, dueTime, priority, status, done, userId, category, assignedTo, groupId, repeatInterval, lastReminderDate: null });
+        resolve({ id: this.lastID, text, dueDate, dueTime, priority, status, done, userId, category, tags: parseTags(formatTags(tags)), assignedTo, groupId, repeatInterval, lastReminderDate: null });
       }
     );
   });
@@ -297,7 +332,9 @@ function getTask(id, userId) {
     }
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
-      resolve(row || null);
+      if (!row) return resolve(null);
+      row.tags = parseTags(row.tags);
+      resolve(row);
     });
   });
 }
@@ -333,6 +370,10 @@ function updateTask(id, fields, userId) {
     if (fields.category !== undefined) {
       updates.push('category = ?');
       params.push(fields.category);
+    }
+    if (fields.tags !== undefined) {
+      updates.push('tags = ?');
+      params.push(formatTags(fields.tags));
     }
     if (fields.repeatInterval !== undefined) {
       updates.push('repeatInterval = ?');

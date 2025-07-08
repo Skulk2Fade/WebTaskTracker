@@ -6,6 +6,9 @@ async function fetchTasks(filters = {}) {
   if (filters.category && filters.category.trim() !== '') {
     params.append('category', filters.category.trim());
   }
+  if (filters.tags && filters.tags.trim() !== '') {
+    params.append('tags', filters.tags.trim());
+  }
   if (filters.status === 'completed') {
     params.append('done', 'true');
   } else if (filters.status === 'active') {
@@ -31,6 +34,15 @@ let currentUser = null;
 let csrfToken = '';
 let eventSource = null;
 const selectedTasks = new Set();
+
+function tagColor(tag) {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = (hash * 31 + tag.charCodeAt(i)) & 0xffffffff;
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue},60%,60%)`;
+}
 
 async function requestNotificationPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
@@ -136,10 +148,22 @@ function renderTasks(tasks) {
     li.tabIndex = 0;
     li.dataset.id = task.id;
     const cat = task.category ? ` {${task.category}}` : '';
+    const tags = Array.isArray(task.tags) ? task.tags : [];
     const textSpan = document.createElement('span');
     const taskHtml = DOMPurify.sanitize(marked.parse(task.text));
     const due = task.dueDate ? (task.dueTime ? `${task.dueDate} ${task.dueTime}` : task.dueDate) : 'N/A';
     textSpan.innerHTML = `${taskHtml} (Due: ${due}) [${task.priority}]${cat}`;
+    if (tags.length) {
+      const tagContainer = document.createElement('span');
+      tags.forEach(t => {
+        const tagEl = document.createElement('span');
+        tagEl.className = 'tag';
+        tagEl.textContent = t;
+        tagEl.style.backgroundColor = tagColor(t);
+        tagContainer.append(' ', tagEl);
+      });
+      textSpan.appendChild(tagContainer);
+    }
     li.appendChild(textSpan);
     li.classList.add(task.priority);
     if (task.done) {
@@ -180,13 +204,14 @@ function renderTasks(tasks) {
       const newTime = prompt('Due time (HH:MM):', task.dueTime || '');
       const newPriority = prompt('Priority (high, medium, low):', task.priority);
       const newCategory = prompt('Category:', task.category || '');
+      const newTags = prompt('Tags (comma separated):', Array.isArray(task.tags) ? task.tags.join(',') : '');
       await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'CSRF-Token': csrfToken
         },
-        body: JSON.stringify({ text: newText, dueDate: newDue, dueTime: newTime, priority: newPriority, category: newCategory })
+        body: JSON.stringify({ text: newText, dueDate: newDue, dueTime: newTime, priority: newPriority, category: newCategory, tags: newTags.split(',').map(t => t.trim()).filter(t => t) })
       });
       loadTasks();
       loadReminders();
@@ -300,10 +325,11 @@ async function loadTasks() {
   const status = document.getElementById('status-filter').value;
   const priorityFilter = document.getElementById('priority-filter').value;
   const categoryFilter = document.getElementById('category-filter').value;
+  const tagsFilter = document.getElementById('tags-filter').value;
   const search = document.getElementById('search-input').value;
   const sort = document.getElementById('sort-select').value;
   selectedTasks.clear();
-  const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, sort, search });
+  const tasks = await fetchTasks({ status, priority: priorityFilter, category: categoryFilter, tags: tagsFilter, sort, search });
   renderTasks(tasks);
 }
 
@@ -330,12 +356,17 @@ document.getElementById('add-button').onclick = async () => {
   const dueInput = document.getElementById('due-date-input');
   const timeInput = document.getElementById('due-time-input');
   const categoryInput = document.getElementById('category-input');
+  const tagsInput = document.getElementById('tags-input');
   const prioritySelect = document.getElementById('priority-select');
   const text = input.value.trim();
   const dueDate = dueInput.value;
   const dueTime = timeInput.value;
   const priority = prioritySelect.value;
   const category = categoryInput.value.trim();
+  const tags = tagsInput.value
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t);
   if (text) {
     await fetch('/api/tasks', {
       method: 'POST',
@@ -343,12 +374,13 @@ document.getElementById('add-button').onclick = async () => {
         'Content-Type': 'application/json',
         'CSRF-Token': csrfToken
       },
-      body: JSON.stringify({ text, dueDate, dueTime, priority, category })
+      body: JSON.stringify({ text, dueDate, dueTime, priority, category, tags })
     });
     input.value = '';
     dueInput.value = '';
     timeInput.value = '';
     categoryInput.value = '';
+    tagsInput.value = '';
     prioritySelect.value = 'medium';
     loadTasks();
     loadReminders();
@@ -358,6 +390,7 @@ document.getElementById('add-button').onclick = async () => {
 document.getElementById('status-filter').onchange = loadTasks;
 document.getElementById('priority-filter').onchange = loadTasks;
 document.getElementById('category-filter').onchange = loadTasks;
+document.getElementById('tags-filter').onchange = loadTasks;
 document.getElementById('sort-select').onchange = loadTasks;
 document.getElementById('search-input').addEventListener('input', loadTasks);
 
