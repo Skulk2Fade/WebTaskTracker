@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>Admin Dashboard</h1>
-    <nav>
+    <nav role="navigation" aria-label="Main Navigation">
       <a href="index.html">Back to Tasks</a>
     </nav>
   </header>
@@ -24,7 +24,7 @@
     <h2>Activity Logs</h2>
     <ul id="logs"></ul>
   </div>
-  <div id="not-admin" class="error" style="display:none;">Access denied</div>
+  <div id="not-admin" class="error" role="alert" style="display:none;">Access denied</div>
   </div> <!-- end container -->
   <script src="admin.js"></script>
   <script src="sw-register.js"></script>

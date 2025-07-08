@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>Task Calendar</h1>
-    <nav>
+    <nav role="navigation" aria-label="Main Navigation">
       <a href="index.html">Back to Tasks</a>
     </nav>
   </header>
@@ -21,19 +21,19 @@
       <input type="text" id="username-input" placeholder="Username" autocomplete="username" required>
       <label for="password-input">Password</label>
       <input type="password" id="password-input" placeholder="Password" autocomplete="current-password" required>
-      <button id="login-button" type="submit">Login</button>
-      <button id="register-button" type="button">Register</button>
-      <div id="login-error" class="error" aria-live="polite"></div>
+      <button id="login-button" type="submit" aria-label="Login">Login</button>
+      <button id="register-button" type="button" aria-label="Register">Register</button>
+      <div id="login-error" class="error" aria-live="polite" role="alert"></div>
     </form>
     <div id="user-info" style="display:none;">
       Logged in as <span id="current-user"></span>
-      <button id="logout-button">Logout</button>
+      <button id="logout-button" aria-label="Logout">Logout</button>
     </div>
   </div>
   <div id="calendar-controls" style="display:none;">
-    <button id="prev-month">Prev</button>
+    <button id="prev-month" aria-label="Previous Month">Prev</button>
     <span id="month-label"></span>
-    <button id="next-month">Next</button>
+    <button id="next-month" aria-label="Next Month">Next</button>
   </div>
   <table id="calendar"></table>
 

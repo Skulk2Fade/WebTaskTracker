@@ -121,6 +121,10 @@ async function handleLogin(event) {
   const password = document.getElementById('password-input').value;
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
+  if (!username || !password) {
+    errorEl.textContent = 'Username and password are required';
+    return;
+  }
   if (username && password) {
     await updateCsrfToken();
     const res = await fetch('/api/login', {
@@ -147,6 +151,10 @@ document.getElementById('register-button').onclick = async () => {
   const password = document.getElementById('password-input').value;
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
+  if (!username || !password) {
+    errorEl.textContent = 'Username and password are required';
+    return;
+  }
   if (username && password) {
     const res = await fetch('/api/register', {
       method: 'POST',
