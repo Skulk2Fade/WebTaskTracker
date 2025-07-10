@@ -167,7 +167,28 @@ function isValidFutureDateTime(dateStr, timeStr) {
   return due >= now;
 }
 
-function getNextRepeatDate(dateStr, interval) {
+function isValidRecurrenceRule(rule) {
+  return (
+    rule &&
+    Number.isInteger(rule.weekday) &&
+    rule.weekday >= 0 &&
+    rule.weekday <= 6 &&
+    Number.isInteger(rule.ordinal) &&
+    rule.ordinal >= 1 &&
+    rule.ordinal <= 5
+  );
+}
+
+function nthWeekdayOfMonth(year, month, weekday, ordinal) {
+  const first = new Date(Date.UTC(year, month, 1));
+  const firstDow = first.getUTCDay();
+  let day = 1 + ((7 + weekday - firstDow) % 7) + (ordinal - 1) * 7;
+  const dim = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  if (day > dim) return null;
+  return new Date(Date.UTC(year, month, day));
+}
+
+function getNextRepeatDate(dateStr, interval, rule) {
   if (!dateStr) return null;
   const date = new Date(dateStr + 'T00:00:00Z');
   if (isNaN(date.getTime())) return null;
@@ -189,6 +210,16 @@ function getNextRepeatDate(dateStr, interval) {
     const next = new Date(
       Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 2, 0)
     );
+    return next.toISOString().slice(0, 10);
+  } else if (interval === 'custom' && rule && isValidRecurrenceRule(rule)) {
+    date.setUTCMonth(date.getUTCMonth() + 1);
+    const next = nthWeekdayOfMonth(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      rule.weekday,
+      rule.ordinal
+    );
+    if (!next) return null;
     return next.toISOString().slice(0, 10);
   } else {
     return null;
@@ -935,7 +966,8 @@ app.post('/api/tasks/import', requireAuth, requireWriter, async (req, res) => {
         category: t.category || null,
         tags: Array.isArray(t.tags) ? t.tags : typeof t.tags === 'string' ? t.tags.split(';').map(x => x.trim()).filter(x => x) : undefined,
         assignedTo: t.assignedTo || null,
-        repeatInterval: t.repeatInterval || null
+        repeatInterval: t.repeatInterval || null,
+        recurrenceRule: t.recurrenceRule || null
       });
       created.push(task);
     }
@@ -978,6 +1010,7 @@ app.post('/api/tasks', requireAuth, requireWriter, async (req, res) => {
   const assignedTo = req.body.assignedTo;
   const groupId = req.body.groupId;
   const repeatInterval = req.body.repeatInterval;
+  const recurrenceRule = req.body.recurrenceRule;
   const status = req.body.status || 'todo';
   let priority = req.body.priority || 'medium';
   priority = ['high', 'medium', 'low'].includes(priority) ? priority : 'medium';
@@ -994,11 +1027,14 @@ app.post('/api/tasks', requireAuth, requireWriter, async (req, res) => {
     repeatInterval !== undefined &&
     repeatInterval !== null &&
     repeatInterval !== '' &&
-    !['daily', 'weekly', 'monthly', 'weekday', 'last_day'].includes(
+    !['daily', 'weekly', 'monthly', 'weekday', 'last_day', 'custom'].includes(
       repeatInterval
     )
   ) {
     return res.status(400).json({ error: 'Invalid repeat interval' });
+  }
+  if (repeatInterval === 'custom' && !isValidRecurrenceRule(recurrenceRule)) {
+    return res.status(400).json({ error: 'Invalid recurrence rule' });
   }
   try {
     let assigneeId = assignedTo;
@@ -1024,7 +1060,8 @@ app.post('/api/tasks', requireAuth, requireWriter, async (req, res) => {
       userId: req.session.userId,
       assignedTo: assigneeId,
       groupId,
-      repeatInterval
+      repeatInterval,
+      recurrenceRule
     });
     await db.createHistory({
       taskId: task.id,
@@ -1111,7 +1148,7 @@ app.delete('/api/tasks/:taskId/permissions/:userId', requireAuth, async (req, re
 
 app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
   const id = parseInt(req.params.id);
-  const { text, dueDate, dueTime, priority, status, done, category, tags, repeatInterval } = req.body;
+  const { text, dueDate, dueTime, priority, status, done, category, tags, repeatInterval, recurrenceRule } = req.body;
   if (text !== undefined && !text.trim()) {
     return res.status(400).json({ error: 'Task text cannot be empty' });
   }
@@ -1133,11 +1170,14 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
     repeatInterval !== undefined &&
     repeatInterval !== null &&
     repeatInterval !== '' &&
-    !['daily', 'weekly', 'monthly', 'weekday', 'last_day'].includes(
+    !['daily', 'weekly', 'monthly', 'weekday', 'last_day', 'custom'].includes(
       repeatInterval
     )
   ) {
     return res.status(400).json({ error: 'Invalid repeat interval' });
+  }
+  if (repeatInterval === 'custom' && !isValidRecurrenceRule(recurrenceRule)) {
+    return res.status(400).json({ error: 'Invalid recurrence rule' });
   }
   try {
     const oldTask = await db.getTask(id, req.session.userId);
@@ -1159,7 +1199,25 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
     }
     const updated = await db.updateTask(
       id,
-      { text, dueDate, dueTime, priority, status, done, category, tags: Array.isArray(tags) ? tags : typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(t => t) : undefined, repeatInterval },
+      {
+        text,
+        dueDate,
+        dueTime,
+        priority,
+        status,
+        done,
+        category,
+        tags: Array.isArray(tags)
+          ? tags
+          : typeof tags === 'string'
+          ? tags
+              .split(',')
+              .map(t => t.trim())
+              .filter(t => t)
+          : undefined,
+        repeatInterval,
+        recurrenceRule
+      },
       req.session.userId
     );
     if (!updated) {
@@ -1192,7 +1250,8 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
     ) {
       const nextDue = getNextRepeatDate(
         updated.dueDate,
-        updated.repeatInterval
+        updated.repeatInterval,
+        updated.recurrenceRule
       );
       if (nextDue) {
         await db.createTask({
@@ -1205,7 +1264,8 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
           done: false,
           userId: updated.userId,
           assignedTo: updated.assignedTo,
-          repeatInterval: updated.repeatInterval
+          repeatInterval: updated.repeatInterval,
+          recurrenceRule: updated.recurrenceRule
         });
       }
     }
