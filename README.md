@@ -184,7 +184,8 @@ tab is not focused.
 ## Notification Preferences
 
 Each user can control whether they receive email reminders or notification
-emails for comments and task assignments. Retrieve your current settings with:
+emails for comments and task assignments. You can also enable SMS alerts and
+provide a custom template used for all notifications. Retrieve your current settings with:
 
 ```
 GET /api/preferences
@@ -194,7 +195,9 @@ Update them by sending:
 
 ```
 PUT /api/preferences
-{ "emailReminders": false, "emailNotifications": true }
+{ "emailReminders": false, "emailNotifications": true,
+  "notifySms": true, "phoneNumber": "+15551234567",
+  "notificationTemplate": "Task '{{text}}' - {{event}}" }
 ```
 
 ## Groups

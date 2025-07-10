@@ -10,6 +10,7 @@ const csurf = require('csurf');
 const { encrypt, decrypt } = require('./cryptoUtil');
 const totp = require('./totp');
 const email = require('./email');
+const sms = require('./sms');
 const webhooks = require('./webhooks');
 const { tasksToIcs, fromIcs } = require('./icsUtil');
 const calendarSync = require('./calendarSync');
@@ -87,6 +88,11 @@ function sendSse(userId, type, data) {
   for (const res of set) {
     res.write(payload);
   }
+}
+
+function formatTemplate(template, vars) {
+  if (!template) return null;
+  return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] || '');
 }
 
 async function checkDueSoon() {
@@ -691,6 +697,9 @@ app.get('/api/preferences', requireAuth, async (req, res) => {
     res.json({
       emailReminders: !!user.emailReminders,
       emailNotifications: !!user.emailNotifications,
+      notifySms: !!user.notifySms,
+      phoneNumber: user.phoneNumber || null,
+      notificationTemplate: user.notificationTemplate || null,
       timezone: user.timezone || 'UTC'
     });
   } catch (err) {
@@ -699,16 +708,29 @@ app.get('/api/preferences', requireAuth, async (req, res) => {
 });
 
 app.put('/api/preferences', requireAuth, async (req, res) => {
-  const { emailReminders, emailNotifications, timezone } = req.body;
+  const {
+    emailReminders,
+    emailNotifications,
+    notifySms,
+    phoneNumber,
+    notificationTemplate,
+    timezone
+  } = req.body;
   try {
     const user = await db.updateUserPreferences(req.session.userId, {
       emailReminders,
       emailNotifications,
+      notifySms,
+      phoneNumber,
+      notificationTemplate,
       timezone
     });
     res.json({
       emailReminders: !!user.emailReminders,
       emailNotifications: !!user.emailNotifications,
+      notifySms: !!user.notifySms,
+      phoneNumber: user.phoneNumber || null,
+      notificationTemplate: user.notificationTemplate || null,
       timezone: user.timezone || 'UTC'
     });
   } catch (err) {
@@ -984,14 +1006,27 @@ app.get('/api/reminders', requireAuth, async (req, res) => {
     const user = await db.getUserById(req.session.userId);
     const tz = user && user.timezone ? user.timezone : 'UTC';
     const tasks = await db.getDueSoonTasks(req.session.userId, tz);
-    if (user && user.emailReminders) {
+    if (user) {
       for (const t of tasks) {
         const dueStr = t.dueTime ? `${t.dueDate} ${t.dueTime}` : t.dueDate;
-        await email.sendEmail(
-          `${user.username}@example.com`,
-          'Task Reminder',
-          `Task "${t.text}" is due on ${dueStr}`
-        );
+        const body =
+          formatTemplate(user.notificationTemplate, {
+            event: 'task_due',
+            text: t.text,
+            due: dueStr,
+            comment: '',
+            username: user.username
+          }) || `Task "${t.text}" is due on ${dueStr}`;
+        if (user.emailReminders) {
+          await email.sendEmail(
+            `${user.username}@example.com`,
+            'Task Reminder',
+            body
+          );
+        }
+        if (user.notifySms && user.phoneNumber) {
+          await sms.sendSms(user.phoneNumber, body);
+        }
       }
     }
     for (const t of tasks) {
@@ -1087,12 +1122,23 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
     if (!user) return res.status(400).json({ error: 'User not found' });
     const updated = await db.assignTask(id, user.id);
     if (!updated) return res.status(404).json({ error: 'Task not found' });
+    const assignBody =
+      formatTemplate(user.notificationTemplate, {
+        event: 'task_assigned',
+        text: updated.text,
+        due: '',
+        comment: '',
+        username: user.username
+      }) || `You have been assigned the task "${updated.text}"`;
     if (user.emailNotifications) {
       await email.sendEmail(
         `${user.username}@example.com`,
         'Task Assigned',
-        `You have been assigned the task "${updated.text}"`
+        assignBody
       );
+    }
+    if (user.notifySms && user.phoneNumber) {
+      await sms.sendSms(user.phoneNumber, assignBody);
     }
     await db.createHistory({
       taskId: updated.id,
@@ -1477,12 +1523,23 @@ app.post('/api/tasks/:taskId/comments', requireAuth, requireWriter, async (req, 
         if (assignee) recipients.push(assignee);
       }
       for (const user of recipients) {
+        const commentBody =
+          formatTemplate(user.notificationTemplate, {
+            event: 'task_commented',
+            text: task.text,
+            due: '',
+            comment: text,
+            username: user.username
+          }) || `A new comment was added to task "${task.text}": ${text}`;
         if (user.emailNotifications) {
           await email.sendEmail(
             `${user.username}@example.com`,
             'New Comment',
-            `A new comment was added to task "${task.text}": ${text}`
+            commentBody
           );
+        }
+        if (user.notifySms && user.phoneNumber) {
+          await sms.sendSms(user.phoneNumber, commentBody);
         }
         sendSse(user.id, 'task_commented', { taskId, text });
       }

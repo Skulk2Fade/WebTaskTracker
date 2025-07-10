@@ -43,6 +43,9 @@ db.serialize(() => {
     twofaSecretExpiresAt TEXT,
     emailReminders INTEGER NOT NULL DEFAULT 1,
     emailNotifications INTEGER NOT NULL DEFAULT 1,
+    notifySms INTEGER NOT NULL DEFAULT 0,
+    phoneNumber TEXT,
+    notificationTemplate TEXT,
     timezone TEXT NOT NULL DEFAULT 'UTC',
     googleId TEXT UNIQUE,
     githubId TEXT UNIQUE,
@@ -214,6 +217,15 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'emailNotifications')) {
       db.run('ALTER TABLE users ADD COLUMN emailNotifications INTEGER NOT NULL DEFAULT 1');
+    }
+    if (!cols.some(c => c.name === 'notifySms')) {
+      db.run('ALTER TABLE users ADD COLUMN notifySms INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!cols.some(c => c.name === 'phoneNumber')) {
+      db.run('ALTER TABLE users ADD COLUMN phoneNumber TEXT');
+    }
+    if (!cols.some(c => c.name === 'notificationTemplate')) {
+      db.run('ALTER TABLE users ADD COLUMN notificationTemplate TEXT');
     }
     if (!cols.some(c => c.name === 'googleId')) {
       db.run('ALTER TABLE users ADD COLUMN googleId TEXT UNIQUE');
@@ -1034,13 +1046,16 @@ function createUser({
   twofaSecret = null,
   emailReminders = 1,
   emailNotifications = 1,
+  notifySms = 0,
+  phoneNumber = null,
+  notificationTemplate = null,
   googleId = null,
   githubId = null,
   timezone = 'UTC'
 }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, googleId, githubId, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, notifySms, phoneNumber, notificationTemplate, googleId, githubId, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         username,
         password,
@@ -1048,6 +1063,9 @@ function createUser({
         twofaSecret,
         emailReminders,
         emailNotifications,
+        notifySms,
+        phoneNumber,
+        notificationTemplate,
         googleId,
         githubId,
         timezone
@@ -1062,6 +1080,9 @@ function createUser({
           twofaSecret,
           emailReminders,
           emailNotifications,
+          notifySms,
+          phoneNumber,
+          notificationTemplate,
           googleId,
           githubId,
           timezone
@@ -1268,7 +1289,7 @@ function setUserTwoFactorSecret(id, secret, expiresAt = null) {
   });
 }
 
-function updateUserPreferences(id, { emailReminders, emailNotifications, timezone }) {
+function updateUserPreferences(id, { emailReminders, emailNotifications, notifySms, phoneNumber, notificationTemplate, timezone }) {
   return new Promise((resolve, reject) => {
     const fields = [];
     const params = [];
@@ -1279,6 +1300,18 @@ function updateUserPreferences(id, { emailReminders, emailNotifications, timezon
     if (emailNotifications !== undefined) {
       fields.push('emailNotifications = ?');
       params.push(emailNotifications ? 1 : 0);
+    }
+    if (notifySms !== undefined) {
+      fields.push('notifySms = ?');
+      params.push(notifySms ? 1 : 0);
+    }
+    if (phoneNumber !== undefined) {
+      fields.push('phoneNumber = ?');
+      params.push(phoneNumber);
+    }
+    if (notificationTemplate !== undefined) {
+      fields.push('notificationTemplate = ?');
+      params.push(notificationTemplate);
     }
     if (timezone !== undefined) {
       fields.push('timezone = ?');
