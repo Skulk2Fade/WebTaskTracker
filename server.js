@@ -12,6 +12,7 @@ const totp = require('./totp');
 const email = require('./email');
 const webhooks = require('./webhooks');
 const { tasksToIcs, fromIcs } = require('./icsUtil');
+const calendarSync = require('./calendarSync');
 let passport;
 let GoogleStrategy;
 let GitHubStrategy;
@@ -969,6 +970,7 @@ app.post('/api/tasks/import', requireAuth, requireWriter, async (req, res) => {
         repeatInterval: t.repeatInterval || null,
         recurrenceRule: t.recurrenceRule || null
       });
+      await calendarSync.syncTask(task);
       created.push(task);
     }
     res.status(201).json(created);
@@ -1063,6 +1065,7 @@ app.post('/api/tasks', requireAuth, requireWriter, async (req, res) => {
       repeatInterval,
       recurrenceRule
     });
+    await calendarSync.syncTask(task);
     await db.createHistory({
       taskId: task.id,
       userId: req.session.userId,
@@ -1220,6 +1223,9 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
       },
       req.session.userId
     );
+    if (updated) {
+      await calendarSync.syncTask(updated);
+    }
     if (!updated) {
       return res.status(404).json({ error: 'Task not found' });
     }
@@ -1254,7 +1260,7 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
         updated.recurrenceRule
       );
       if (nextDue) {
-        await db.createTask({
+        const repeatTask = await db.createTask({
           text: updated.text,
           dueDate: nextDue,
           dueTime: updated.dueTime,
@@ -1267,6 +1273,7 @@ app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
           repeatInterval: updated.repeatInterval,
           recurrenceRule: updated.recurrenceRule
         });
+        await calendarSync.syncTask(repeatTask);
       }
     }
     res.json(updated);
@@ -1298,7 +1305,10 @@ app.put('/api/tasks/bulk', requireAuth, requireWriter, async (req, res) => {
         },
         req.session.userId
       );
-      if (updated) results.push(updated);
+      if (updated) {
+        await calendarSync.syncTask(updated);
+        results.push(updated);
+      }
     }
     res.json(results);
   } catch (err) {
@@ -1315,7 +1325,10 @@ app.post('/api/tasks/bulk-delete', requireAuth, requireAdmin, async (req, res) =
     const results = [];
     for (const id of ids) {
       const del = await db.deleteTask(id);
-      if (del) results.push(del);
+      if (del) {
+        await calendarSync.deleteTask(del.id);
+        results.push(del);
+      }
     }
     res.json(results);
   } catch (err) {
@@ -1330,6 +1343,7 @@ app.delete('/api/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ error: 'Task not found' });
     }
+    await calendarSync.deleteTask(deleted.id);
     res.json(deleted);
   } catch (err) {
     handleError(res, err, 'Failed to save task');
