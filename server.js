@@ -1058,6 +1058,43 @@ app.post('/api/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) =>
   }
 });
 
+app.post('/api/tasks/:id/permissions', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { username, canEdit } = req.body;
+  if (!username) return res.status(400).json({ error: 'username required' });
+  try {
+    const task = await db.getTask(id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const current = await db.getUserById(req.session.userId);
+    if (task.userId !== req.session.userId && (!current || current.role !== 'admin')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const user = await db.getUserByUsername(username);
+    if (!user) return res.status(400).json({ error: 'User not found' });
+    const perm = await db.setTaskPermission(id, user.id, !!canEdit);
+    res.json(perm);
+  } catch (err) {
+    handleError(res, err, 'Failed to set permission');
+  }
+});
+
+app.delete('/api/tasks/:taskId/permissions/:userId', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.taskId);
+  const userId = parseInt(req.params.userId);
+  try {
+    const task = await db.getTask(taskId);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    const current = await db.getUserById(req.session.userId);
+    if (task.userId !== req.session.userId && (!current || current.role !== 'admin')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    await db.removeTaskPermission(taskId, userId);
+    res.json({ ok: true });
+  } catch (err) {
+    handleError(res, err, 'Failed to remove permission');
+  }
+});
+
 app.put('/api/tasks/:id', requireAuth, requireWriter, async (req, res) => {
   const id = parseInt(req.params.id);
   const { text, dueDate, dueTime, priority, status, done, category, tags, repeatInterval } = req.body;

@@ -1170,3 +1170,62 @@ test('group admin can create group', async () => {
   expect(res2.status).toBe(201);
 });
 
+test('task permissions allow sharing and editing', async () => {
+  const owner = request.agent(app);
+  let token = (await owner.get('/api/csrf-token')).body.csrfToken;
+  await owner
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'owner', password: 'Passw0rd!' });
+
+  token = (await owner.get('/api/csrf-token')).body.csrfToken;
+  let res = await owner
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Shared' });
+  const taskId = res.body.id;
+
+  const other = request.agent(app);
+  token = (await other.get('/api/csrf-token')).body.csrfToken;
+  await other
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'other', password: 'Passw0rd!' });
+
+  token = (await owner.get('/api/csrf-token')).body.csrfToken;
+  await owner
+    .post(`/api/tasks/${taskId}/permissions`)
+    .set('CSRF-Token', token)
+    .send({ username: 'other', canEdit: false });
+
+  token = (await other.get('/api/csrf-token')).body.csrfToken;
+  await other
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'other', password: 'Passw0rd!' });
+
+  res = await other.get('/api/tasks');
+  expect(res.body.length).toBe(1);
+
+  token = (await other.get('/api/csrf-token')).body.csrfToken;
+  res = await other
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ text: 'Fail' });
+  expect(res.status).toBe(404);
+
+  token = (await owner.get('/api/csrf-token')).body.csrfToken;
+  await owner
+    .post(`/api/tasks/${taskId}/permissions`)
+    .set('CSRF-Token', token)
+    .send({ username: 'other', canEdit: true });
+
+  token = (await other.get('/api/csrf-token')).body.csrfToken;
+  res = await other
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ text: 'Updated' });
+  expect(res.status).toBe(200);
+  expect(res.body.text).toBe('Updated');
+});
+
