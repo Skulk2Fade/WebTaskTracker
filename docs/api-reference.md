@@ -19,7 +19,10 @@ Terminate the current session.
 
 ### `GET /api/tasks`
 Retrieve all tasks for the authenticated user. Supports query parameters for
-pagination and filtering by date range or categories.
+pagination and filtering by date range or categories. The `search` parameter now
+accepts simple boolean expressions using `AND`, `OR` and `NOT` for matching task
+text or comment content. Tags can be filtered with a comma separated `tags`
+parameter or a boolean `tagQuery` expression.
 
 ### `POST /api/tasks`
 Create a new task. See the schema in the OpenAPI file for available fields.

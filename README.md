@@ -3,7 +3,7 @@
 This is a simple Express-based task tracker.
 Tasks are persisted in a local SQLite database (`tasks.db`).
 Each user has their own task list after logging in. Tasks can optionally be assigned to another user as well as given a category label so they can be filtered and grouped.
-You can also search your tasks by keyword across both task text and comments using the search bar or by sending a `search` query parameter to the `/api/tasks` endpoint. The task list endpoint additionally supports filtering by multiple categories with the `categories` query parameter and limiting results to a due date range via `startDate` and `endDate`.
+You can also search your tasks by keyword across both task text and comments using the search bar or by sending a `search` query parameter to the `/api/tasks` endpoint. Search strings may include simple boolean expressions using `AND`, `OR` and `NOT` to match complex queries. In addition to filtering by multiple categories with the `categories` parameter and limiting results with `startDate`/`endDate`, you can filter by tags using either a comma separated `tags` list or a boolean expression with `tagQuery`.
 Results can be paginated with `page` and `pageSize` query parameters to more easily navigate large task lists.
 
 Tasks can be assigned to another user using `POST /api/tasks/:id/assign` with a `username` in the request body. Assigned tasks will appear in that user's task list.

@@ -240,6 +240,47 @@ test('filter by tags', async () => {
   expect(res.body[0].text).toBe('T1');
 });
 
+test('boolean search queries', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'boolean', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'apple orange', tags: ['fruit'] });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'banana', tags: ['fruit', 'yellow'] });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'carrot', tags: ['vegetable'] });
+
+  let res = await agent.get('/api/tasks?search=apple AND orange');
+  expect(res.body.length).toBe(1);
+
+  res = await agent.get('/api/tasks?search=banana OR carrot');
+  expect(res.body.length).toBe(2);
+
+  res = await agent.get('/api/tasks?search=banana NOT carrot');
+  expect(res.body.length).toBe(1);
+
+  res = await agent.get('/api/tasks?tagQuery=fruit AND NOT yellow');
+  expect(res.body.length).toBe(1);
+  expect(res.body[0].text).toContain('apple');
+});
+
 test('assign task to another user', async () => {
   const alice = request.agent(app);
   const bob = request.agent(app);
