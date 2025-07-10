@@ -54,6 +54,8 @@ Retrieve the current user's notification settings.
 
 ### `PUT /api/preferences`
 Update email reminder and notification preferences.
+You can also enable SMS notifications and provide a custom template using
+placeholders like `{{text}}`, `{{due}}`, `{{event}}` and `{{comment}}`.
 
 For additional routes such as groups, attachments and administrative
 endpoints refer to the [OpenAPI specification](openapi.yaml).

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const email = require('../email');
+const sms = require('../sms');
 const webhooks = require('../webhooks');
 const { tasksToIcs } = require('../icsUtil');
 
@@ -304,6 +305,13 @@ test('assign task to another user', async () => {
     .post('/api/login')
     .set('CSRF-Token', token)
     .send({ username: 'bob', password: 'Passw0rd!' });
+
+  const bobPhone = '+10000000000';
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .put('/api/preferences')
+    .set('CSRF-Token', token)
+    .send({ notifySms: true, phoneNumber: bobPhone });
 
   token = (await alice.get('/api/csrf-token')).body.csrfToken;
   let res = await alice
@@ -632,6 +640,7 @@ test('email notifications on assign, comment and reminder', async () => {
     .send({ username: 'bob', password: 'Passw0rd!' });
 
   email.clearEmails();
+  sms.clearSms();
   token = (await alice.get('/api/csrf-token')).body.csrfToken;
   let res = await alice
     .post('/api/tasks')
@@ -645,16 +654,20 @@ test('email notifications on assign, comment and reminder', async () => {
     .set('CSRF-Token', token)
     .send({ username: 'bob' });
   expect(email.sentEmails.some(e => e.to === 'bob@example.com')).toBe(true);
+  expect(sms.sentSms.some(s => s.to === bobPhone)).toBe(true);
 
   email.clearEmails();
+  sms.clearSms();
   token = (await bob.get('/api/csrf-token')).body.csrfToken;
   await bob
     .post(`/api/tasks/${taskId}/comments`)
     .set('CSRF-Token', token)
     .send({ text: 'hello' });
   expect(email.sentEmails.some(e => e.to === 'alice@example.com')).toBe(true);
+  expect(sms.sentSms.length).toBe(0);
 
   email.clearEmails();
+  sms.clearSms();
   const today = new Date().toISOString().slice(0, 10);
   token = (await bob.get('/api/csrf-token')).body.csrfToken;
   await bob
@@ -664,6 +677,7 @@ test('email notifications on assign, comment and reminder', async () => {
 
   await bob.get('/api/reminders');
   expect(email.sentEmails.some(e => e.to === 'bob@example.com')).toBe(true);
+  expect(sms.sentSms.some(s => s.to === bobPhone)).toBe(true);
 });
 
 test('task history records actions', async () => {
@@ -862,7 +876,7 @@ test('notification preferences disable emails', async () => {
   await bob
     .put('/api/preferences')
     .set('CSRF-Token', token)
-    .send({ emailReminders: false, emailNotifications: false });
+    .send({ emailReminders: false, emailNotifications: false, notifySms: false });
 
   email.clearEmails();
   token = (await alice.get('/api/csrf-token')).body.csrfToken;
@@ -878,6 +892,7 @@ test('notification preferences disable emails', async () => {
     .set('CSRF-Token', token)
     .send({ username: 'bob' });
   expect(email.sentEmails.some(e => e.to === 'bob@example.com')).toBe(false);
+  expect(sms.sentSms.length).toBe(0);
 
   email.clearEmails();
   token = (await bob.get('/api/csrf-token')).body.csrfToken;
@@ -897,6 +912,7 @@ test('notification preferences disable emails', async () => {
 
   await bob.get('/api/reminders');
   expect(email.sentEmails.length).toBe(0);
+  expect(sms.sentSms.length).toBe(0);
 });
 
 test('task dependencies enforcement', async () => {
