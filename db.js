@@ -18,6 +18,20 @@ function parseTags(str) {
   return str.split(',').filter(t => t);
 }
 
+function formatRecurrenceRule(rule) {
+  if (!rule) return null;
+  return JSON.stringify(rule);
+}
+
+function parseRecurrenceRule(str) {
+  if (!str) return null;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
 // Initialize tables
 db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -51,6 +65,7 @@ db.serialize(() => {
     reminderSent INTEGER NOT NULL DEFAULT 0,
     lastReminderDate TEXT,
     repeatInterval TEXT,
+    recurrenceRule TEXT,
     tags TEXT
   )`);
 
@@ -177,6 +192,9 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'repeatInterval')) {
       db.run('ALTER TABLE tasks ADD COLUMN repeatInterval TEXT');
+    }
+    if (!cols.some(c => c.name === 'recurrenceRule')) {
+      db.run('ALTER TABLE tasks ADD COLUMN recurrenceRule TEXT');
     }
     if (!cols.some(c => c.name === 'tags')) {
       db.run('ALTER TABLE tasks ADD COLUMN tags TEXT');
@@ -310,6 +328,7 @@ function listTasks({
         rows.map(async r => ({
           ...r,
           tags: parseTags(r.tags),
+          recurrenceRule: parseRecurrenceRule(r.recurrenceRule),
           subtasks: await listSubtasks(r.id, userId),
           dependencies: await listDependencies(r.id, userId)
         }))
@@ -339,16 +358,17 @@ function createTask({
   tags,
   assignedTo,
   groupId,
-  repeatInterval
+  repeatInterval,
+  recurrenceRule
 }) {
   status = status || (done ? 'completed' : 'todo');
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, tags, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)`,
-      [text, dueDate, dueTime, priority, status, done ? 1 : 0, userId, category, formatTags(tags), assignedTo, groupId, repeatInterval],
+      `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, tags, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval, recurrenceRule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
+      [text, dueDate, dueTime, priority, status, done ? 1 : 0, userId, category, formatTags(tags), assignedTo, groupId, repeatInterval, formatRecurrenceRule(recurrenceRule)],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, dueTime, priority, status, done, userId, category, tags: parseTags(formatTags(tags)), assignedTo, groupId, repeatInterval, lastReminderDate: null });
+        resolve({ id: this.lastID, text, dueDate, dueTime, priority, status, done, userId, category, tags: parseTags(formatTags(tags)), assignedTo, groupId, repeatInterval, recurrenceRule, lastReminderDate: null });
       }
     );
   });
@@ -367,6 +387,7 @@ function getTask(id, userId) {
       if (err) return reject(err);
       if (!row) return resolve(null);
       row.tags = parseTags(row.tags);
+      row.recurrenceRule = parseRecurrenceRule(row.recurrenceRule);
       resolve(row);
     });
   });
@@ -411,6 +432,10 @@ function updateTask(id, fields, userId) {
     if (fields.repeatInterval !== undefined) {
       updates.push('repeatInterval = ?');
       params.push(fields.repeatInterval);
+    }
+    if (fields.recurrenceRule !== undefined) {
+      updates.push('recurrenceRule = ?');
+      params.push(formatRecurrenceRule(fields.recurrenceRule));
     }
     if (fields.done !== undefined) {
       updates.push('done = ?');
