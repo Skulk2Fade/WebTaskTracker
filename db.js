@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
+const { buildSearchClause, matchesTagQuery } = require('./searchUtil');
 
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
 const db = new sqlite3.Database(DB_FILE);
@@ -225,6 +226,7 @@ function listTasks({
   category,
   categories,
   tags,
+  tagQuery,
   search,
   startDate,
   endDate,
@@ -270,8 +272,14 @@ function listTasks({
     }
 
     if (search) {
-      where.push('(tasks.text LIKE ? OR comments.text LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+      const { clause, params: searchParams } = buildSearchClause(search, [
+        'tasks.text',
+        'comments.text'
+      ]);
+      if (clause) {
+        where.push(`(${clause})`);
+        params.push(...searchParams);
+      }
     }
 
     if (done === true || done === false) {
@@ -310,6 +318,9 @@ function listTasks({
         tasksWithSub = tasksWithSub.filter(t =>
           tags.every(tag => t.tags.includes(tag))
         );
+      }
+      if (tagQuery) {
+        tasksWithSub = tasksWithSub.filter(t => matchesTagQuery(t.tags, tagQuery));
       }
       resolve(tasksWithSub);
     });

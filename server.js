@@ -717,7 +717,20 @@ app.get('/api/groups', requireAuth, async (req, res) => {
 
 
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { priority, done, sort, category, categories, tags, search, startDate, endDate, page, pageSize } = req.query;
+  const {
+    priority,
+    done,
+    sort,
+    category,
+    categories,
+    tags,
+    tagQuery,
+    search,
+    startDate,
+    endDate,
+    page,
+    pageSize
+  } = req.query;
   const pg = parseInt(page, 10) >= 1 ? parseInt(page, 10) : 1;
   const size = parseInt(pageSize, 10) >= 1 ? parseInt(pageSize, 10) : 20;
   try {
@@ -739,6 +752,7 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
             .map(t => t.trim())
             .filter(t => t)
         : undefined,
+      tagQuery,
       search,
       startDate,
       endDate,
