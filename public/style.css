@@ -90,6 +90,13 @@ label {
   color: blue;
 }
 
+#offline-indicator {
+  margin-bottom: 10px;
+  background: #ffeb3b;
+  padding: 4px;
+  border: 1px solid #e0c200;
+}
+
 /* Responsive layout for small screens */
 @media (max-width: 600px) {
   body {
