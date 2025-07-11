@@ -254,6 +254,9 @@ Uploaded files are validated against a small list of safe MIME types and are
 written with `0600` permissions for your user only. The maximum allowed size can
 be configured with the `MAX_ATTACHMENT_SIZE` environment variable (bytes,
 default `10485760`). Requests exceeding the limit return a `413` response.
+If you set `ATTACHMENT_MIN_SPACE`, the server will warn at startup when less
+than that many bytes are free in the directory. `ATTACHMENT_QUOTA` limits the
+total size of files stored and uploads will fail with `507` once exceeded.
 
 ## Time Tracking
 
