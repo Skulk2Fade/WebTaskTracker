@@ -28,7 +28,9 @@ common task queries fast.
 Session data is also stored in this database so it survives server restarts.
 Session cookies are configured with `httpOnly`, `sameSite=lax` and
 `secure` (enabled when `NODE_ENV` is set to `production`) to help protect
-your session from client-side access and CSRF attacks.
+your session from client-side access and CSRF attacks. Additional HTTP
+security headers like HSTS and XSS protection are set using the
+`helmet` middleware.
 
 ## Usage
 
