@@ -50,6 +50,9 @@ You can configure the bcrypt work factor with the `BCRYPT_ROUNDS` environment
 variable (default `12`). Higher values provide stronger hashing but increase CPU
 usage. The frequency of automatic reminder checks can be changed with the
 `DUE_SOON_CHECK_INTERVAL` environment variable (milliseconds, default `60000`).
+To avoid overloading the server when many clients are connected, the number of
+connections processed in each reminder cycle can be controlled with
+`DUE_SOON_BATCH_SIZE` (default `50`).
 
 ## Authentication
 
