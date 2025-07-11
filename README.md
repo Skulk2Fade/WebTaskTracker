@@ -316,3 +316,21 @@ You can configure outgoing webhooks by setting the `WEBHOOK_URLS` environment
 variable to one or more comma separated URLs. The application will POST a JSON
 payload whenever a task is assigned, completed or commented on so you can
 integrate with services like Slack or Microsoft Teams.
+
+## Email and SMS Providers
+
+During testing the server merely records outgoing emails and text messages. To
+deliver real notifications in production, configure SendGrid and Twilio
+credentials via environment variables and install the corresponding packages.
+
+```
+SENDGRID_API_KEY=your_key
+SENDGRID_FROM_EMAIL=no-reply@example.com
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_FROM_NUMBER=+15551234567
+```
+
+When these variables are present and `@sendgrid/mail` or `twilio` are available,
+notifications will be sent through those services instead of being stored in
+memory for tests.
