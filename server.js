@@ -135,6 +135,31 @@ const MAX_ATTACHMENT_SIZE =
   parseInt(process.env.MAX_ATTACHMENT_SIZE, 10) || 10 * 1024 * 1024; // 10MB
 
 const ATTACHMENT_DIR = process.env.ATTACHMENT_DIR;
+const ATTACHMENT_MIN_SPACE =
+  parseInt(process.env.ATTACHMENT_MIN_SPACE, 10) || 0;
+const ATTACHMENT_QUOTA =
+  parseInt(process.env.ATTACHMENT_QUOTA, 10) || 0;
+
+function getDirSize(dir) {
+  let size = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    const stat = fs.statSync(full);
+    if (stat.isFile()) size += stat.size;
+    else if (stat.isDirectory()) size += getDirSize(full);
+  }
+  return size;
+}
+
+function getFreeSpace(dir) {
+  try {
+    const { bavail, bsize } = fs.statfsSync(dir);
+    return bavail * bsize;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
+
 if (ATTACHMENT_DIR) {
   const resolved = path.resolve(ATTACHMENT_DIR);
   const publicDir = path.resolve(__dirname, 'public');
@@ -142,6 +167,14 @@ if (ATTACHMENT_DIR) {
     console.warn('ATTACHMENT_DIR should not be inside the public directory');
   }
   fs.mkdirSync(resolved, { recursive: true, mode: 0o700 });
+  if (ATTACHMENT_MIN_SPACE) {
+    const free = getFreeSpace(resolved);
+    if (free < ATTACHMENT_MIN_SPACE) {
+      console.warn(
+        `ATTACHMENT_DIR has only ${free} bytes free (< ${ATTACHMENT_MIN_SPACE})`
+      );
+    }
+  }
 }
 
 app.use(express.json());
@@ -1613,6 +1646,13 @@ app.post('/api/tasks/:taskId/attachments/upload', requireAuth, requireWriter, as
   if (!isAllowedMimeType(mimeType)) {
     return res.status(400).json({ error: 'Unsupported mime type' });
   }
+  if (ATTACHMENT_QUOTA) {
+    const used = getDirSize(ATTACHMENT_DIR);
+    const free = getFreeSpace(ATTACHMENT_DIR);
+    if (used >= ATTACHMENT_QUOTA || free < MAX_ATTACHMENT_SIZE) {
+      return res.status(507).json({ error: 'Attachment storage full' });
+    }
+  }
   const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
   const stream = fs.createWriteStream(temp, { mode: 0o600 });
   let uploaded = 0;
@@ -1631,6 +1671,13 @@ app.post('/api/tasks/:taskId/attachments/upload', requireAuth, requireWriter, as
   req.pipe(stream);
   stream.on('finish', async () => {
     if (aborted) return;
+    if (ATTACHMENT_QUOTA) {
+      const used = getDirSize(ATTACHMENT_DIR);
+      if (used > ATTACHMENT_QUOTA) {
+        fs.unlink(temp, () => {});
+        return res.status(507).json({ error: 'Attachment quota exceeded' });
+      }
+    }
     try {
       const att = await db.createTaskAttachment(taskId, { filename, mimeType, filePath: temp }, req.session.userId);
       if (!att) {
@@ -1694,6 +1741,13 @@ app.post('/api/comments/:commentId/attachments/upload', requireAuth, requireWrit
   if (!isAllowedMimeType(mimeType)) {
     return res.status(400).json({ error: 'Unsupported mime type' });
   }
+  if (ATTACHMENT_QUOTA) {
+    const used = getDirSize(ATTACHMENT_DIR);
+    const free = getFreeSpace(ATTACHMENT_DIR);
+    if (used >= ATTACHMENT_QUOTA || free < MAX_ATTACHMENT_SIZE) {
+      return res.status(507).json({ error: 'Attachment storage full' });
+    }
+  }
   const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
   const stream = fs.createWriteStream(temp, { mode: 0o600 });
   let uploaded = 0;
@@ -1712,6 +1766,13 @@ app.post('/api/comments/:commentId/attachments/upload', requireAuth, requireWrit
   req.pipe(stream);
   stream.on('finish', async () => {
     if (aborted) return;
+    if (ATTACHMENT_QUOTA) {
+      const used = getDirSize(ATTACHMENT_DIR);
+      if (used > ATTACHMENT_QUOTA) {
+        fs.unlink(temp, () => {});
+        return res.status(507).json({ error: 'Attachment quota exceeded' });
+      }
+    }
     try {
       const att = await db.createCommentAttachment(commentId, { filename, mimeType, filePath: temp }, req.session.userId);
       if (!att) {
