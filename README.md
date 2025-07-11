@@ -41,6 +41,10 @@ export SESSION_SECRET=your_secret_here
 npm start
 ```
 
+An `.env.example` file lists all environment variables used by the application.
+Copy it to `.env`, edit the values and `source .env` (or otherwise export the
+variables) before starting the server.
+
 The server will run on port 3000 by default if no `PORT` variable is set.
 You can configure the bcrypt work factor with the `BCRYPT_ROUNDS` environment
 variable (default `12`). Higher values provide stronger hashing but increase CPU
