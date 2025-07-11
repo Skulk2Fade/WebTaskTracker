@@ -7,6 +7,7 @@ const SQLiteStore = require('./sqliteStore');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const csurf = require('csurf');
+const helmet = require('helmet');
 const { encrypt, decrypt } = require('./cryptoUtil');
 const totp = require('./totp');
 const email = require('./email');
@@ -40,6 +41,7 @@ if (enableGoogle || enableGithub) {
   console.warn('OAuth environment variables not set; skipping Passport initialization');
 }
 const app = express();
+app.use(helmet());
 
 const isTestEnv = process.env.NODE_ENV === 'test';
 const rateCounters = new Map();
