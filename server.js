@@ -97,15 +97,35 @@ function formatTemplate(template, vars) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] || '');
 }
 
+const DUE_SOON_CHECK_INTERVAL =
+  parseInt(process.env.DUE_SOON_CHECK_INTERVAL, 10) || 60000;
+const DUE_SOON_BATCH_SIZE =
+  parseInt(process.env.DUE_SOON_BATCH_SIZE, 10) || 50;
+let dueSoonOffset = 0;
+
 async function checkDueSoon() {
-  for (const id of Array.from(sseClients.keys())) {
+  const ids = Array.from(sseClients.keys());
+  if (ids.length === 0) return;
+  const batchSize = Math.min(DUE_SOON_BATCH_SIZE, ids.length);
+  const batch = [];
+  for (let i = 0; i < batchSize; i++) {
+    batch.push(ids[(dueSoonOffset + i) % ids.length]);
+  }
+  dueSoonOffset = (dueSoonOffset + batchSize) % ids.length;
+
+  for (const id of batch) {
     const uid = parseInt(id, 10);
     try {
       const user = await db.getUserById(uid);
       const tz = user && user.timezone ? user.timezone : 'UTC';
       const tasks = await db.getDueSoonTasks(uid, tz);
       for (const t of tasks) {
-        sendSse(uid, 'task_due', { taskId: t.id, text: t.text, dueDate: t.dueDate, dueTime: t.dueTime });
+        sendSse(uid, 'task_due', {
+          taskId: t.id,
+          text: t.text,
+          dueDate: t.dueDate,
+          dueTime: t.dueTime
+        });
       }
     } catch (err) {
       console.error(err);
@@ -113,8 +133,6 @@ async function checkDueSoon() {
   }
 }
 
-const DUE_SOON_CHECK_INTERVAL =
-  parseInt(process.env.DUE_SOON_CHECK_INTERVAL, 10) || 60000;
 setInterval(checkDueSoon, DUE_SOON_CHECK_INTERVAL);
 
 // Use a higher bcrypt work factor for stronger password hashing.
