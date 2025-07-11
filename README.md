@@ -53,6 +53,9 @@ usage. The frequency of automatic reminder checks can be changed with the
 To avoid overloading the server when many clients are connected, the number of
 connections processed in each reminder cycle can be controlled with
 `DUE_SOON_BATCH_SIZE` (default `50`).
+Two-factor secrets expire according to `TWO_FA_SECRET_TTL` (milliseconds,
+default `600000`) and the TOTP step size can be set with `TOTP_STEP`
+(seconds, default `30`).
 
 ## Authentication
 
@@ -84,9 +87,12 @@ POST /api/enable-2fa
 The response contains a `secret` in base32 format, a `qr` URL that can be
 used to generate a QR code for your authenticator app and an `expiresAt`
 timestamp. The server encrypts the secret before storing it and the secret is
-only valid for a short time. When
+only valid for a short time. The lifetime defaults to 10 minutes but can be
+adjusted with the `TWO_FA_SECRET_TTL` environment variable. When
 2FA is enabled you must include a `token` field with the current code alongside
 your username and password when calling `/api/login`.
+The step size for generating codes defaults to 30 seconds and can be changed
+with the `TOTP_STEP` environment variable.
 
 Disable two-factor authentication at any time with:
 

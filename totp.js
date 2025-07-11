@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+const TOTP_STEP = parseInt(process.env.TOTP_STEP, 10) || 30;
 
 function base32Encode(buf) {
   let bits = 0;
@@ -42,7 +43,7 @@ function generateSecret() {
   return crypto.randomBytes(20).toString('hex');
 }
 
-function totpToken(secret, step = 30, counterOffset = 0) {
+function totpToken(secret, step = TOTP_STEP, counterOffset = 0) {
   const counter = Math.floor(Date.now() / 1000 / step) + counterOffset;
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64BE(BigInt(counter));
@@ -54,15 +55,15 @@ function totpToken(secret, step = 30, counterOffset = 0) {
   return code.toString().padStart(6, '0');
 }
 
-function verifyToken(token, secret) {
+function verifyToken(token, secret, step = TOTP_STEP) {
   for (let i = -1; i <= 1; i++) {
-    if (totpToken(secret, 30, i) === String(token)) return true;
+    if (totpToken(secret, step, i) === String(token)) return true;
   }
   return false;
 }
 
-function generateToken(secret) {
-  return totpToken(secret);
+function generateToken(secret, step = TOTP_STEP) {
+  return totpToken(secret, step);
 }
 
 module.exports = {
@@ -70,5 +71,6 @@ module.exports = {
   verifyToken,
   generateToken,
   base32Encode,
-  base32Decode
+  base32Decode,
+  TOTP_STEP
 };
