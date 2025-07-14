@@ -42,6 +42,7 @@ if (enableGoogle || enableGithub) {
 }
 const app = express();
 app.use(helmet());
+app.use(helmet.contentSecurityPolicy({ directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", "https://cdn.jsdelivr.net"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", "data:"] } }));
 
 const isTestEnv = process.env.NODE_ENV === 'test';
 const rateCounters = new Map();
