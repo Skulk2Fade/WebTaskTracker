@@ -31,6 +31,7 @@ Session cookies are configured with `httpOnly`, `sameSite=lax` and
 your session from client-side access and CSRF attacks. Additional HTTP
 security headers like HSTS and XSS protection are set using the
 `helmet` middleware.
+A Content Security Policy further restricts resource loading to this server and cdn.jsdelivr.net.
 
 ## Usage
 
