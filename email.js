@@ -1,3 +1,4 @@
+const logger = require('./logger');
 const sentEmails = [];
 
 let sgMail = null;
@@ -9,7 +10,7 @@ if (useSendgrid) {
     sgMail = require('@sendgrid/mail');
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
   } catch (err) {
-    console.warn('SendGrid module not installed; falling back to stub email');
+    logger.warn('SendGrid module not installed; falling back to stub email');
     sgMail = null;
   }
 }
