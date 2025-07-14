@@ -69,9 +69,10 @@ If Google or GitHub OAuth credentials are configured via environment variables
 (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`),
 you can also log in using those providers from the login screen. The server only
 initializes the required Passport strategies when these variables are present.
-If the optional `passport`, `passport-google-oauth20` or `passport-github2`
-modules are missing, a warning is logged at startup and the OAuth routes will be
-unavailable.
+When OAuth credentials are set all required Passport modules must be installed.
+If any are missing the server will exit at startup rather than silently disabling
+OAuth routes. Remove the credentials or install the missing dependencies to
+proceed.
 
 Passwords must be at least 8 characters long and include upper and lower case
 letters and a number.

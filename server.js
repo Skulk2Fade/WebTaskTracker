@@ -34,8 +34,11 @@ if (enableGoogle || enableGithub) {
       GitHubStrategy = require('passport-github2').Strategy;
     }
   } catch (err) {
-    console.warn('Passport modules not installed; OAuth disabled');
-    passport = null;
+    console.error(
+      'Required Passport modules are missing. Install them or remove OAuth environment variables.'
+    );
+    console.error(err);
+    process.exit(1);
   }
 } else {
   console.warn('OAuth environment variables not set; skipping Passport initialization');
