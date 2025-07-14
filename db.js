@@ -162,6 +162,12 @@ db.serialize(() => {
     FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT PRIMARY KEY,
+    start INTEGER NOT NULL,
+    count INTEGER NOT NULL
+  )`);
+
   // Add indexes to speed up common queries
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)');
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)');
@@ -1371,6 +1377,39 @@ function lockAccount(id, until) {
   });
 }
 
+function incrementRateLimit(key, windowMs) {
+  return new Promise((resolve, reject) => {
+    const now = Date.now();
+    db.get(
+      `SELECT start, count FROM rate_limits WHERE key = ?`,
+      [key],
+      (err, row) => {
+        if (err) return reject(err);
+        if (!row || now - row.start > windowMs) {
+          db.run(
+            `REPLACE INTO rate_limits (key, start, count) VALUES (?, ?, 1)`,
+            [key, now],
+            err2 => {
+              if (err2) return reject(err2);
+              resolve({ count: 1 });
+            }
+          );
+        } else {
+          const newCount = row.count + 1;
+          db.run(
+            `UPDATE rate_limits SET count = ? WHERE key = ?`,
+            [newCount, key],
+            err2 => {
+              if (err2) return reject(err2);
+              resolve({ count: newCount });
+            }
+          );
+        }
+      }
+    );
+  });
+}
+
 function createGroup(name) {
   return new Promise((resolve, reject) => {
     db.run(
@@ -1555,5 +1594,6 @@ module.exports = {
   setUserGithubId,
   setTaskPermission,
   removeTaskPermission,
-  getTaskPermission
+  getTaskPermission,
+  incrementRateLimit
 };

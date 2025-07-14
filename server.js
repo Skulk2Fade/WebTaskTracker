@@ -48,29 +48,25 @@ app.use(helmet());
 app.use(helmet.contentSecurityPolicy({ directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", "https://cdn.jsdelivr.net"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", "data:"] } }));
 
 const isTestEnv = process.env.NODE_ENV === 'test';
-const rateCounters = new Map();
 
-function rateLimiter(windowMs, max) {
-  return (req, res, next) => {
+function rateLimiter(windowMs, max, name) {
+  return async (req, res, next) => {
     if (isTestEnv) return next();
-    const now = Date.now();
-    const key = req.ip;
-    let entry = rateCounters.get(key);
-    if (!entry || now - entry.start > windowMs) {
-      entry = { start: now, count: 1 };
-    } else {
-      entry.count += 1;
-    }
-    rateCounters.set(key, entry);
-    if (entry.count > max) {
-      return res.status(429).json({ error: 'Too many requests' });
+    try {
+      const key = `${name}:${req.ip}`;
+      const { count } = await db.incrementRateLimit(key, windowMs);
+      if (count > max) {
+        return res.status(429).json({ error: 'Too many requests' });
+      }
+    } catch (err) {
+      console.error('Rate limit error:', err);
     }
     next();
   };
 }
 
-const apiLimiter = rateLimiter(15 * 60 * 1000, 100);
-const loginLimiter = rateLimiter(15 * 60 * 1000, 10);
+const apiLimiter = rateLimiter(15 * 60 * 1000, 100, 'api');
+const loginLimiter = rateLimiter(15 * 60 * 1000, 10, 'login');
 
 // Simple Server-Sent Events implementation
 const sseClients = new Map();
