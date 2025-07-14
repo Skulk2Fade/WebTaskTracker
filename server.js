@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const logger = require('./logger');
 const db = require('./db');
 const session = require('express-session');
 const SQLiteStore = require('./sqliteStore');
@@ -34,14 +35,14 @@ if (enableGoogle || enableGithub) {
       GitHubStrategy = require('passport-github2').Strategy;
     }
   } catch (err) {
-    console.error(
+    logger.error(
+      err,
       'Required Passport modules are missing. Install them or remove OAuth environment variables.'
     );
-    console.error(err);
     process.exit(1);
   }
 } else {
-  console.warn('OAuth environment variables not set; skipping Passport initialization');
+  logger.warn('OAuth environment variables not set; skipping Passport initialization');
 }
 const app = express();
 app.use(helmet());
@@ -59,7 +60,7 @@ function rateLimiter(windowMs, max, name) {
         return res.status(429).json({ error: 'Too many requests' });
       }
     } catch (err) {
-      console.error('Rate limit error:', err);
+      logger.error({ err }, 'Rate limit error');
     }
     next();
   };
@@ -128,7 +129,7 @@ async function checkDueSoon() {
         });
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
   }
 }
@@ -182,13 +183,13 @@ if (ATTACHMENT_DIR) {
   const resolved = path.resolve(ATTACHMENT_DIR);
   const publicDir = path.resolve(__dirname, 'public');
   if (resolved.startsWith(publicDir)) {
-    console.warn('ATTACHMENT_DIR should not be inside the public directory');
+    logger.warn('ATTACHMENT_DIR should not be inside the public directory');
   }
   fs.mkdirSync(resolved, { recursive: true, mode: 0o700 });
   if (ATTACHMENT_MIN_SPACE) {
     const free = getFreeSpace(resolved);
     if (free < ATTACHMENT_MIN_SPACE) {
-      console.warn(
+      logger.warn(
         `ATTACHMENT_DIR has only ${free} bytes free (< ${ATTACHMENT_MIN_SPACE})`
       );
     }
@@ -303,7 +304,7 @@ function isAllowedMimeType(type) {
 }
 
 function handleError(res, err, message) {
-  console.error(err);
+  logger.error(err);
   const body = { error: message };
   if (process.env.NODE_ENV !== 'production') {
     body.details = err.message;
@@ -312,7 +313,7 @@ function handleError(res, err, message) {
 }
 const sessionSecret = process.env.SESSION_SECRET;
 if (!sessionSecret) {
-  console.error('SESSION_SECRET environment variable is required');
+  logger.error('SESSION_SECRET environment variable is required');
   process.exit(1);
 }
 app.use(
@@ -1887,7 +1888,7 @@ app.use((err, req, res, next) => {
 
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 }
 
 module.exports = app;

@@ -1,3 +1,4 @@
+const logger = require('./logger');
 const sentSms = [];
 
 let twilioClient = null;
@@ -14,7 +15,7 @@ if (useTwilio) {
       process.env.TWILIO_AUTH_TOKEN
     );
   } catch (err) {
-    console.warn('Twilio module not installed; falling back to stub SMS');
+    logger.warn('Twilio module not installed; falling back to stub SMS');
   }
 }
 
