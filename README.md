@@ -75,7 +75,7 @@ OAuth routes. Remove the credentials or install the missing dependencies to
 proceed.
 
 Passwords must be at least 8 characters long and include upper and lower case
-letters and a number.
+letters, a number and a special character.
 
 ## Two-Factor Authentication
 
