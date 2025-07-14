@@ -297,7 +297,8 @@ function isStrongPassword(pw) {
     pw.length >= 8 &&
     /[a-z]/.test(pw) &&
     /[A-Z]/.test(pw) &&
-    /[0-9]/.test(pw)
+    /[0-9]/.test(pw) &&
+    /[^A-Za-z0-9]/.test(pw)
   );
 }
 
@@ -524,7 +525,8 @@ app.post('/api/register', async (req, res) => {
   }
   if (!isStrongPassword(password)) {
     return res.status(400).json({
-      error: 'Password must be at least 8 characters and include upper and lower case letters and a number'
+      error:
+        'Password must be at least 8 characters and include upper and lower case letters, a number and a special character'
     });
   }
   try {
@@ -674,7 +676,7 @@ app.post('/api/reset-password', async (req, res) => {
   if (!isStrongPassword(password)) {
     return res.status(400).json({
       error:
-        'Password must be at least 8 characters and include upper and lower case letters and a number'
+        'Password must be at least 8 characters and include upper and lower case letters, a number and a special character'
     });
   }
   try {

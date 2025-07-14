@@ -3,6 +3,17 @@ let csrfToken = '';
 let currentYear;
 let currentMonth;
 
+function isStrongPassword(pw) {
+  return (
+    typeof pw === 'string' &&
+    pw.length >= 8 &&
+    /[a-z]/.test(pw) &&
+    /[A-Z]/.test(pw) &&
+    /[0-9]/.test(pw) &&
+    /[^A-Za-z0-9]/.test(pw)
+  );
+}
+
 async function updateCsrfToken() {
   const res = await fetch('/api/csrf-token');
   const data = await res.json();
@@ -153,6 +164,11 @@ document.getElementById('register-button').onclick = async () => {
   errorEl.textContent = '';
   if (!username || !password) {
     errorEl.textContent = 'Username and password are required';
+    return;
+  }
+  if (!isStrongPassword(password)) {
+    errorEl.textContent =
+      'Password must be at least 8 characters and include upper and lower case letters, a number and a special character';
     return;
   }
   if (username && password) {
