@@ -1883,7 +1883,10 @@ app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({ error: 'Invalid CSRF token' });
   }
-  next(err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  handleError(res, err, 'Internal server error');
 });
 
 if (require.main === module) {
