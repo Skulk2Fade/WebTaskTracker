@@ -254,6 +254,25 @@ db.serialize(() => {
   });
 });
 
+/**
+ * Retrieve tasks matching the provided filters.
+ *
+ * @param {Object} [options]
+ * @param {'high'|'medium'|'low'} [options.priority]
+ * @param {boolean} [options.done]
+ * @param {string} [options.sort]
+ * @param {number} [options.userId]
+ * @param {string} [options.category]
+ * @param {string[]} [options.categories]
+ * @param {string[]} [options.tags]
+ * @param {string} [options.tagQuery]
+ * @param {string} [options.search]
+ * @param {string} [options.startDate]
+ * @param {string} [options.endDate]
+ * @param {number} [options.limit]
+ * @param {number} [options.offset]
+ * @returns {Promise<Task[]>}
+ */
 function listTasks({
   priority,
   done,
@@ -364,6 +383,12 @@ function listTasks({
   });
 }
 
+/**
+ * Insert a new task into the database.
+ *
+ * @param {Omit<Task,'id'|'reminderSent'|'lastReminderDate'>} task
+ * @returns {Promise<Task>}
+ */
 function createTask({
   text,
   dueDate,
@@ -392,6 +417,13 @@ function createTask({
   });
 }
 
+/**
+ * Retrieve a single task by id.
+ *
+ * @param {number} id
+ * @param {number} [userId]
+ * @returns {Promise<Task|null>}
+ */
 function getTask(id, userId) {
   return new Promise((resolve, reject) => {
     const params = [id];
@@ -535,6 +567,13 @@ function getSubtask(id, userId) {
   });
 }
 
+/**
+ * List all subtasks for a task.
+ *
+ * @param {number} taskId
+ * @param {number} [userId]
+ * @returns {Promise<Subtask[]>}
+ */
 function listSubtasks(taskId, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -628,6 +667,13 @@ function removeDependency(taskId, dependsOn, userId) {
   });
 }
 
+/**
+ * List comments for a given task.
+ *
+ * @param {number} taskId
+ * @param {number} [userId]
+ * @returns {Promise<Comment[]>}
+ */
 function listComments(taskId, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -648,6 +694,14 @@ function listComments(taskId, userId) {
   });
 }
 
+/**
+ * Add a comment to a task.
+ *
+ * @param {number} taskId
+ * @param {string} text
+ * @param {number} userId
+ * @returns {Promise<Comment|null>}
+ */
 function createComment(taskId, text, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -708,6 +762,14 @@ function deleteComment(id, userId) {
   });
 }
 
+/**
+ * Store an attachment associated with a task.
+ *
+ * @param {number} taskId
+ * @param {{filename: string, mimeType: string, content?: string, filePath?: string}} file
+ * @param {number} [userId]
+ * @returns {Promise<Attachment|null>}
+ */
 function createTaskAttachment(taskId, { filename, mimeType, content, filePath }, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
@@ -739,6 +801,14 @@ function createTaskAttachment(taskId, { filename, mimeType, content, filePath },
   });
 }
 
+/**
+ * Store an attachment associated with a comment.
+ *
+ * @param {number} commentId
+ * @param {{filename: string, mimeType: string, content?: string, filePath?: string}} file
+ * @param {number} [userId]
+ * @returns {Promise<Attachment|null>}
+ */
 function createCommentAttachment(commentId, { filename, mimeType, content, filePath }, userId) {
   return new Promise((resolve, reject) => {
     const params = [commentId];
@@ -914,6 +984,14 @@ function listTimeEntries(taskId, filterUserId, actingUserId) {
   });
 }
 
+/**
+ * Create a subtask for the given task.
+ *
+ * @param {number} taskId
+ * @param {{text: string, done?: boolean}} subtask
+ * @param {number} [userId]
+ * @returns {Promise<Subtask|null>}
+ */
 function createSubtask(taskId, { text, done = false }, userId) {
   return new Promise((resolve, reject) => {
     const params = [taskId];
