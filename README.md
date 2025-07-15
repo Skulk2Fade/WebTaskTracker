@@ -343,6 +343,20 @@ TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_FROM_NUMBER=+15551234567
 ```
 
+Install the provider modules:
+
+```bash
+npm install @sendgrid/mail twilio
+```
+
+Create `.env` from the included template if needed and supply your credentials.
+You can also run the helper script to automate this step:
+
+```bash
+scripts/setup-providers.sh
+```
+
+
 When these variables are present and `@sendgrid/mail` or `twilio` are available,
 notifications will be sent through those services instead of being stored in
 memory for tests.
