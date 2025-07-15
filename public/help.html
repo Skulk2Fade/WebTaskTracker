@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Tracker Help</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Help</h1>
+    <nav role="navigation" aria-label="Main Navigation">
+      <a href="index.html">Back to Tasks</a>
+    </nav>
+  </header>
+  <div class="container">
+    <h2>Additional Features</h2>
+    <p>This application exposes several features via the API that are not directly available in the interface.</p>
+
+    <h3>Recurring Tasks</h3>
+    <p>You can create tasks that repeat automatically. When calling <code>POST /api/tasks</code>, include a <code>repeatInterval</code> value of <code>daily</code>, <code>weekly</code>, <code>monthly</code>, <code>weekday</code>, <code>last_day</code> or <code>custom</code>. Completed tasks will automatically schedule their next occurrence. For custom recurrences, provide a <code>recurrenceRule</code> in <a href="https://icalendar.org/rrule-tool.htm">iCalendar RRULE</a> format.</p>
+
+    <h3>Attachments</h3>
+    <p>Files can be attached to tasks or comments by using the attachment endpoints. Base64 data can be sent directly in the request body, or raw files can be uploaded when an <code>ATTACHMENT_DIR</code> is configured on the server.</p>
+<pre><code>POST /api/tasks/:taskId/attachments
+POST /api/tasks/:taskId/attachments/upload
+POST /api/comments/:commentId/attachments/upload
+GET /api/attachments/:id</code></pre>
+    <p>See the README or API reference for more details on these endpoints.</p>
+  </div>
+  <script src="sw-register.js"></script>
+</body>
+</html>
