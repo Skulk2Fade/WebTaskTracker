@@ -6,6 +6,7 @@ const { buildSearchClause, matchesTagQuery } = require('./searchUtil');
 
 const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
 const db = new sqlite3.Database(DB_FILE);
+const prepared = {};
 
 function formatTags(tags) {
   if (Array.isArray(tags)) return tags.join(',');
@@ -172,6 +173,8 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)');
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)');
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_assignedTo ON tasks(assignedTo)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_text ON tasks(text)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_comments_text ON comments(text)');
 
   db.all("PRAGMA table_info(tasks)", (err, cols) => {
     if (err) return;
@@ -253,6 +256,19 @@ db.serialize(() => {
     }
   });
 });
+
+// Prepare commonly used statements for better performance
+prepared.insertTask = db.prepare(
+  `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, tags, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval, recurrenceRule)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`
+);
+prepared.getTask = db.prepare('SELECT * FROM tasks WHERE id = ?');
+prepared.getTaskAuth = db.prepare(
+  'SELECT * FROM tasks WHERE id = ? AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?) OR tasks.id IN (SELECT taskId FROM task_permissions WHERE userId = ?))'
+);
+prepared.insertComment = db.prepare(
+  'INSERT INTO comments (taskId, userId, text) VALUES (?, ?, ?)'
+);
 
 /**
  * Retrieve tasks matching the provided filters.
@@ -406,12 +422,41 @@ function createTask({
 }) {
   status = status || (done ? 'completed' : 'todo');
   return new Promise((resolve, reject) => {
-    db.run(
-      `INSERT INTO tasks (text, dueDate, dueTime, priority, status, done, userId, category, tags, assignedTo, groupId, reminderSent, lastReminderDate, repeatInterval, recurrenceRule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
-      [text, dueDate, dueTime, priority, status, done ? 1 : 0, userId, category, formatTags(tags), assignedTo, groupId, repeatInterval, formatRecurrenceRule(recurrenceRule)],
+    prepared.insertTask.run(
+      [
+        text,
+        dueDate,
+        dueTime,
+        priority,
+        status,
+        done ? 1 : 0,
+        userId,
+        category,
+        formatTags(tags),
+        assignedTo,
+        groupId,
+        repeatInterval,
+        formatRecurrenceRule(recurrenceRule)
+      ],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, text, dueDate, dueTime, priority, status, done, userId, category, tags: parseTags(formatTags(tags)), assignedTo, groupId, repeatInterval, recurrenceRule, lastReminderDate: null });
+        resolve({
+          id: this.lastID,
+          text,
+          dueDate,
+          dueTime,
+          priority,
+          status,
+          done,
+          userId,
+          category,
+          tags: parseTags(formatTags(tags)),
+          assignedTo,
+          groupId,
+          repeatInterval,
+          recurrenceRule,
+          lastReminderDate: null
+        });
       }
     );
   });
@@ -426,20 +471,18 @@ function createTask({
  */
 function getTask(id, userId) {
   return new Promise((resolve, reject) => {
-    const params = [id];
-    let sql = 'SELECT * FROM tasks WHERE id = ?';
-    if (userId !== undefined) {
-      sql +=
-        ' AND (tasks.userId = ? OR tasks.assignedTo = ? OR tasks.groupId IN (SELECT groupId FROM group_members WHERE userId = ?) OR tasks.id IN (SELECT taskId FROM task_permissions WHERE userId = ?))';
-      params.push(userId, userId, userId, userId);
-    }
-    db.get(sql, params, (err, row) => {
+    const handler = (err, row) => {
       if (err) return reject(err);
       if (!row) return resolve(null);
       row.tags = parseTags(row.tags);
       row.recurrenceRule = parseRecurrenceRule(row.recurrenceRule);
       resolve(row);
-    });
+    };
+    if (userId !== undefined) {
+      prepared.getTaskAuth.get(id, userId, userId, userId, userId, handler);
+    } else {
+      prepared.getTask.get(id, handler);
+    }
   });
 }
 
@@ -714,21 +757,17 @@ function createComment(taskId, text, userId) {
     db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       if (!row) return resolve(null);
-      db.run(
-        'INSERT INTO comments (taskId, userId, text) VALUES (?, ?, ?)',
-        [taskId, userId, text],
-        function (err) {
-          if (err) return reject(err);
-          db.get(
-            'SELECT comments.*, users.username FROM comments JOIN users ON users.id = comments.userId WHERE comments.id = ?',
-            [this.lastID],
-            (err, row) => {
-              if (err) return reject(err);
-              resolve(row);
-            }
-          );
-        }
-      );
+      prepared.insertComment.run([taskId, userId, text], function (err) {
+        if (err) return reject(err);
+        db.get(
+          'SELECT comments.*, users.username FROM comments JOIN users ON users.id = comments.userId WHERE comments.id = ?',
+          [this.lastID],
+          (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+          }
+        );
+      });
     });
   });
 }
