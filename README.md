@@ -33,6 +33,15 @@ your session from client-side access and CSRF attacks. Additional HTTP
 security headers like HSTS and XSS protection are set using the
 `helmet` middleware.
 A Content Security Policy further restricts resource loading to this server and cdn.jsdelivr.net.
+## Linting and Formatting
+
+Run ESLint to check for coding issues and Prettier to automatically format files:
+
+```bash
+npm run lint
+npm run format
+```
+
 
 ## Usage
 
