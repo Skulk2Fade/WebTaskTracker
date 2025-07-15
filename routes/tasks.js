@@ -24,6 +24,10 @@ const {
   requireAdmin
 } = require('../middleware/auth');
 const {
+  checkAttachmentSpace,
+  invalidateAttachmentCache
+} = require('../middleware/attachmentQuota');
+const {
   MAX_ATTACHMENT_SIZE,
   ATTACHMENT_DIR,
   ATTACHMENT_QUOTA
@@ -796,33 +800,31 @@ module.exports = function(app) {
     }
   });
 
-  app.post('/api/tasks/:taskId/attachments/upload', requireAuth, requireWriter, async (req, res) => {
-    const taskId = parseInt(req.params.taskId);
-    if (!ATTACHMENT_DIR) return res.status(500).json({ error: 'Attachment storage not configured' });
-    const filename = req.headers['x-filename'];
-    const mimeType = req.headers['content-type'] || 'application/octet-stream';
-    if (!filename) return res.status(400).json({ error: 'X-Filename header required' });
-    if (!isAllowedMimeType(mimeType)) {
-      return res.status(400).json({ error: 'Unsupported mime type' });
-    }
-    if (ATTACHMENT_QUOTA) {
-      const used = getDirSize(ATTACHMENT_DIR);
-      const free = getFreeSpace(ATTACHMENT_DIR);
-      if (used >= ATTACHMENT_QUOTA || free < MAX_ATTACHMENT_SIZE) {
-        return res.status(507).json({ error: 'Attachment storage full' });
+  app.post(
+    '/api/tasks/:taskId/attachments/upload',
+    requireAuth,
+    requireWriter,
+    checkAttachmentSpace,
+    async (req, res) => {
+      const taskId = parseInt(req.params.taskId);
+      if (!ATTACHMENT_DIR) return res.status(500).json({ error: 'Attachment storage not configured' });
+      const filename = req.headers['x-filename'];
+      const mimeType = req.headers['content-type'] || 'application/octet-stream';
+      if (!filename) return res.status(400).json({ error: 'X-Filename header required' });
+      if (!isAllowedMimeType(mimeType)) {
+        return res.status(400).json({ error: 'Unsupported mime type' });
       }
-    }
-    const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
-    const stream = fs.createWriteStream(temp, { mode: 0o600 });
-    let uploaded = 0;
-    let aborted = false;
+      const temp = path.join(ATTACHMENT_DIR, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`);
+      const stream = fs.createWriteStream(temp, { mode: 0o600 });
+      let uploaded = 0;
+      let aborted = false;
     req.on('data', chunk => {
       uploaded += chunk.length;
       if (uploaded > MAX_ATTACHMENT_SIZE && !aborted) {
         aborted = true;
         req.unpipe(stream);
         stream.destroy();
-        fs.unlink(temp, () => {});
+        fs.unlink(temp, () => invalidateAttachmentCache());
         res.status(413).json({ error: 'Attachment exceeds size limit' });
         req.destroy();
       }
@@ -834,6 +836,7 @@ module.exports = function(app) {
         const used = getDirSize(ATTACHMENT_DIR);
         if (used > ATTACHMENT_QUOTA) {
           fs.unlink(temp, () => {});
+          invalidateAttachmentCache();
           return res.status(507).json({ error: 'Attachment quota exceeded' });
         }
       }
@@ -841,16 +844,20 @@ module.exports = function(app) {
         const att = await db.createTaskAttachment(taskId, { filename, mimeType, filePath: temp }, req.session.userId);
         if (!att) {
           fs.unlink(temp, () => {});
+          invalidateAttachmentCache();
           return res.status(404).json({ error: 'Task not found' });
         }
         res.status(201).json(att);
+        invalidateAttachmentCache();
       } catch (err) {
         fs.unlink(temp, () => {});
         handleError(res, err, 'Failed to save attachment');
+        invalidateAttachmentCache();
       }
     });
     stream.on('error', err => {
       fs.unlink(temp, () => {});
+      invalidateAttachmentCache();
       handleError(res, err, 'Failed to write file');
     });
   });
