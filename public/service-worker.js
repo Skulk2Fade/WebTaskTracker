@@ -4,13 +4,17 @@ const ASSETS = [
   '/index.html',
   '/board.html',
   '/calendar.html',
+  '/dashboard.html',
   '/admin.html',
+  '/help.html',
   '/style.css',
   '/script.js',
   '/board.js',
   '/calendar.js',
+  '/dashboard.js',
   '/admin.js',
-  '/sw-register.js'
+  '/sw-register.js',
+  '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -58,6 +62,12 @@ async function notifyQueueChange() {
   broadcastQueueLength(length);
 }
 
+function broadcastSyncComplete() {
+  return self.clients.matchAll().then(clients => {
+    clients.forEach(c => c.postMessage({ type: 'syncComplete' }));
+  });
+}
+
 function storeRequest(data) {
   return openDB().then(db => {
     return new Promise((resolve, reject) => {
@@ -66,7 +76,12 @@ function storeRequest(data) {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
-  }).then(notifyQueueChange);
+  }).then(() => {
+    if (self.registration.sync) {
+      self.registration.sync.register('task-sync').catch(() => {});
+    }
+    return notifyQueueChange();
+  });
 }
 
 async function flushQueue() {
@@ -93,6 +108,7 @@ async function flushQueue() {
   store.clear();
   await tx.complete;
   await notifyQueueChange();
+  await broadcastSyncComplete();
   return;
 }
 
@@ -150,5 +166,11 @@ self.addEventListener('message', event => {
         }
       })
     );
+  }
+});
+
+self.addEventListener('sync', event => {
+  if (event.tag === 'task-sync') {
+    event.waitUntil(flushQueue());
   }
 });

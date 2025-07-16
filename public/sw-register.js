@@ -11,7 +11,36 @@ function updateIndicator(len) {
   }
 }
 
+function showSyncComplete() {
+  const msg = document.getElementById('sync-message');
+  if (!msg) return;
+  msg.style.display = 'block';
+  setTimeout(() => {
+    msg.style.display = 'none';
+  }, 3000);
+}
+
 if ('serviceWorker' in navigator) {
+  let deferredPrompt;
+  const installBtn = document.getElementById('install-btn');
+  if (installBtn) {
+    installBtn.addEventListener('click', () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.finally(() => {
+        installBtn.style.display = 'none';
+        deferredPrompt = null;
+      });
+    });
+  }
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.style.display = 'block';
+  });
+  window.addEventListener('appinstalled', () => {
+    if (installBtn) installBtn.style.display = 'none';
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').then(() => {
       if (navigator.serviceWorker.controller) {
@@ -23,6 +52,8 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', e => {
     if (e.data && e.data.type === 'queueLength') {
       updateIndicator(e.data.length);
+    } else if (e.data && e.data.type === 'syncComplete') {
+      showSyncComplete();
     }
   });
   window.addEventListener('online', () => {
