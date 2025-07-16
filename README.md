@@ -359,6 +359,15 @@ npm install @sendgrid/mail twilio
 FCM, Slack and Teams integration use the built-in `fetch` API so no extra
 packages are required.
 
+### Third-party Integrations
+
+Import GitHub issues by sending a POST request to `/api/tasks/import/github` with
+an `owner` and `repo`. Provide a `GITHUB_API_TOKEN` environment variable so the
+server can access your repositories.
+
+If `HARVEST_TOKEN` and `HARVEST_ACCOUNT_ID` are set, any logged time entries are
+also forwarded to Harvest automatically.
+
 Create `.env` from the included template if needed and supply your credentials.
 You can also run the helper script to automate this step:
 

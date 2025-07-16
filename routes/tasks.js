@@ -8,6 +8,8 @@ const push = require('../push');
 const slack = require('../slack');
 const teams = require('../teams');
 const webhooks = require('../webhooks');
+const github = require('../github');
+const harvest = require('../harvest');
 const { tasksToIcs, fromIcs } = require('../icsUtil');
 const calendarSync = require('../calendarSync');
 const {
@@ -295,6 +297,30 @@ module.exports = function(app) {
       res.status(201).json(created);
     } catch (err) {
       handleError(res, err, 'Failed to import tasks');
+    }
+  });
+
+  app.post('/api/tasks/import/github', requireAuth, requireWriter, async (req, res) => {
+    const { owner, repo } = req.body || {};
+    if (!owner || !repo) {
+      return res.status(400).json({ error: 'owner and repo required' });
+    }
+    try {
+      const issues = await github.fetchIssues(owner, repo);
+      const created = [];
+      for (const issue of issues) {
+        if (!issue || !issue.title) continue;
+        const task = await db.createTask({
+          text: issue.title,
+          priority: 'medium',
+          userId: req.session.userId
+        });
+        await calendarSync.syncTask(task);
+        created.push(task);
+      }
+      res.status(201).json(created);
+    } catch (err) {
+      handleError(res, err, 'Failed to import from GitHub');
     }
   });
 
@@ -1002,6 +1028,12 @@ module.exports = function(app) {
         req.session.userId
       );
       if (!entry) return res.status(404).json({ error: 'Task not found' });
+      await harvest.logTime({
+        projectId: entry.taskId,
+        taskId: entry.taskId,
+        minutes: entry.minutes,
+        spentDate: new Date().toISOString().slice(0, 10)
+      }).catch(() => {});
       res.status(201).json(entry);
     } catch (err) {
       handleError(res, err, 'Failed to save time entry');

@@ -46,6 +46,11 @@ List all recorded time entries for a task.
 Return tasks formatted for a basic Gantt chart. Each entry includes a
 `startDate`, `dueDate` and list of `dependencies`.
 
+### `POST /api/tasks/import/github`
+Import open issues from a GitHub repository as tasks. Provide an `owner` and
+`repo` in the request body. The server uses the `GITHUB_API_TOKEN` environment
+variable for authentication with GitHub.
+
 ## Reminders
 
 ### `GET /api/reminders`
