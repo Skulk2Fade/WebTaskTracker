@@ -550,12 +550,37 @@ module.exports = function(app) {
         }
       }
       await calendarSync.syncTask(updated);
-      await db.createHistory({
-        taskId: updated.id,
-        userId: req.session.userId,
-        action: 'updated',
-        details: null
-      });
+      if (done === true && !oldTask.done) {
+        await db.createHistory({
+          taskId: updated.id,
+          userId: req.session.userId,
+          action: 'completed',
+          details: null
+        });
+        await webhooks.sendWebhook('task_completed', {
+          taskId: updated.id,
+          text: updated.text
+        });
+        if (updated.userId) {
+          sendSse(updated.userId, 'task_completed', {
+            taskId: updated.id,
+            text: updated.text
+          });
+        }
+        if (updated.assignedTo && updated.assignedTo !== updated.userId) {
+          sendSse(updated.assignedTo, 'task_completed', {
+            taskId: updated.id,
+            text: updated.text
+          });
+        }
+      } else {
+        await db.createHistory({
+          taskId: updated.id,
+          userId: req.session.userId,
+          action: 'updated',
+          details: null
+        });
+      }
       res.json(updated);
     } catch (err) {
       handleError(res, err, 'Failed to save task');

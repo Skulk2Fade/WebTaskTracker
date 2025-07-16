@@ -181,6 +181,35 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TimeEntry'
+  /api/reports:
+    get:
+      summary: User reports
+      responses:
+        '200':
+          description: Report data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  completedPerWeek:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        week:
+                          type: string
+                        count:
+                          type: integer
+                  timePerGroup:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        group:
+                          type: string
+                        minutes:
+                          type: integer
 components:
   schemas:
     User:
