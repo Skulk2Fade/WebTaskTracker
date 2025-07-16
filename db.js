@@ -47,6 +47,9 @@ db.serialize(() => {
     notifySms INTEGER NOT NULL DEFAULT 0,
     phoneNumber TEXT,
     notificationTemplate TEXT,
+    pushToken TEXT,
+    slackId TEXT,
+    teamsId TEXT,
     timezone TEXT NOT NULL DEFAULT 'UTC',
     googleId TEXT UNIQUE,
     githubId TEXT UNIQUE,
@@ -235,6 +238,15 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'notificationTemplate')) {
       db.run('ALTER TABLE users ADD COLUMN notificationTemplate TEXT');
+    }
+    if (!cols.some(c => c.name === 'pushToken')) {
+      db.run('ALTER TABLE users ADD COLUMN pushToken TEXT');
+    }
+    if (!cols.some(c => c.name === 'slackId')) {
+      db.run('ALTER TABLE users ADD COLUMN slackId TEXT');
+    }
+    if (!cols.some(c => c.name === 'teamsId')) {
+      db.run('ALTER TABLE users ADD COLUMN teamsId TEXT');
     }
     if (!cols.some(c => c.name === 'googleId')) {
       db.run('ALTER TABLE users ADD COLUMN googleId TEXT UNIQUE');
@@ -1172,13 +1184,16 @@ function createUser({
   notifySms = 0,
   phoneNumber = null,
   notificationTemplate = null,
+  pushToken = null,
+  slackId = null,
+  teamsId = null,
   googleId = null,
   githubId = null,
   timezone = 'UTC'
 }) {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, notifySms, phoneNumber, notificationTemplate, googleId, githubId, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (username, password, role, twofaSecret, emailReminders, emailNotifications, notifySms, phoneNumber, notificationTemplate, pushToken, slackId, teamsId, googleId, githubId, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         username,
         password,
@@ -1189,6 +1204,9 @@ function createUser({
         notifySms,
         phoneNumber,
         notificationTemplate,
+        pushToken,
+        slackId,
+        teamsId,
         googleId,
         githubId,
         timezone
@@ -1206,6 +1224,9 @@ function createUser({
           notifySms,
           phoneNumber,
           notificationTemplate,
+          pushToken,
+          slackId,
+          teamsId,
           googleId,
           githubId,
           timezone
@@ -1412,7 +1433,20 @@ function setUserTwoFactorSecret(id, secret, expiresAt = null) {
   });
 }
 
-function updateUserPreferences(id, { emailReminders, emailNotifications, notifySms, phoneNumber, notificationTemplate, timezone }) {
+function updateUserPreferences(
+  id,
+  {
+    emailReminders,
+    emailNotifications,
+    notifySms,
+    phoneNumber,
+    notificationTemplate,
+    pushToken,
+    slackId,
+    teamsId,
+    timezone
+  }
+) {
   return new Promise((resolve, reject) => {
     const fields = [];
     const params = [];
@@ -1435,6 +1469,18 @@ function updateUserPreferences(id, { emailReminders, emailNotifications, notifyS
     if (notificationTemplate !== undefined) {
       fields.push('notificationTemplate = ?');
       params.push(notificationTemplate);
+    }
+    if (pushToken !== undefined) {
+      fields.push('pushToken = ?');
+      params.push(pushToken);
+    }
+    if (slackId !== undefined) {
+      fields.push('slackId = ?');
+      params.push(slackId);
+    }
+    if (teamsId !== undefined) {
+      fields.push('teamsId = ?');
+      params.push(teamsId);
     }
     if (timezone !== undefined) {
       fields.push('timezone = ?');

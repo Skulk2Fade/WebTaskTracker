@@ -211,8 +211,9 @@ tab is not focused.
 ## Notification Preferences
 
 Each user can control whether they receive email reminders or notification
-emails for comments and task assignments. You can also enable SMS alerts and
-provide a custom template used for all notifications. Retrieve your current settings with:
+emails for comments and task assignments. You can also enable SMS alerts,
+push notifications through a mobile app and direct Slack or Microsoft Teams messages.
+Provide a custom template used for all notifications. Retrieve your current settings with:
 
 ```
 GET /api/preferences
@@ -224,6 +225,9 @@ Update them by sending:
 PUT /api/preferences
 { "emailReminders": false, "emailNotifications": true,
   "notifySms": true, "phoneNumber": "+15551234567",
+  "pushToken": "abc123",
+  "slackId": "U123456",
+  "teamsId": "19:xyz@thread.v2",
   "notificationTemplate": "Task '{{text}}' - {{event}}" }
 ```
 
@@ -341,6 +345,9 @@ SENDGRID_FROM_EMAIL=no-reply@example.com
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_FROM_NUMBER=+15551234567
+FCM_SERVER_KEY=your_fcm_key
+SLACK_BOT_TOKEN=xoxb-your-token
+TEAMS_BOT_TOKEN=your_teams_token
 ```
 
 Install the provider modules:
@@ -348,6 +355,9 @@ Install the provider modules:
 ```bash
 npm install @sendgrid/mail twilio
 ```
+
+FCM, Slack and Teams integration use the built-in `fetch` API so no extra
+packages are required.
 
 Create `.env` from the included template if needed and supply your credentials.
 You can also run the helper script to automate this step:
