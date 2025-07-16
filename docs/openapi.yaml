@@ -193,6 +193,29 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/GanttTask'
+  /api/tasks/import/github:
+    post:
+      summary: Import tasks from GitHub issues
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                owner:
+                  type: string
+                repo:
+                  type: string
+      responses:
+        '201':
+          description: Array of created tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
   /api/reports:
     get:
       summary: User reports
