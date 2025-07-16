@@ -1656,6 +1656,38 @@ function getReports() {
   });
 }
 
+function getUserReports(userId) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT strftime('%Y-%W', createdAt) AS week, COUNT(*) AS count
+       FROM task_history
+       WHERE action = 'completed' AND userId = ?
+       GROUP BY week
+       ORDER BY week DESC
+       LIMIT 4`,
+      [userId],
+      (err, rows) => {
+        if (err) return reject(err);
+        const completedPerWeek = rows || [];
+        db.all(
+          `SELECT COALESCE(groups.name, 'Unassigned') AS group, SUM(time_entries.minutes) AS minutes
+           FROM time_entries
+           JOIN tasks ON tasks.id = time_entries.taskId
+           LEFT JOIN groups ON groups.id = tasks.groupId
+           WHERE time_entries.userId = ?
+           GROUP BY group
+           ORDER BY minutes DESC`,
+          [userId],
+          (err2, rows2) => {
+            if (err2) return reject(err2);
+            resolve({ completedPerWeek, timePerGroup: rows2 || [] });
+          }
+        );
+      }
+    );
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -1700,6 +1732,7 @@ module.exports = {
   listActivity,
   getStats,
   getReports,
+  getUserReports,
   createHistory,
   listHistory,
   incrementFailedLoginAttempts,

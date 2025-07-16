@@ -1319,3 +1319,44 @@ test('task permissions allow sharing and editing', async () => {
   expect(res.body.text).toBe('Updated');
 });
 
+
+test('user reports include completions and time totals', async () => {
+  const agent = request.agent(app);
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'reporter', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'reporter', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'RepTask' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${taskId}/time`)
+    .set('CSRF-Token', token)
+    .send({ minutes: 10 });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+
+  res = await agent.get('/api/reports');
+  expect(res.status).toBe(200);
+  expect(Array.isArray(res.body.completedPerWeek)).toBe(true);
+  expect(Array.isArray(res.body.timePerGroup)).toBe(true);
+  expect(res.body.completedPerWeek.length).toBeGreaterThan(0);
+  expect(res.body.timePerGroup[0].minutes).toBeGreaterThan(0);
+});

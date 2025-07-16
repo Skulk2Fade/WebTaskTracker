@@ -520,6 +520,7 @@ require("./routes/admin")(app);
 require("./routes/preferences")(app);
 require("./routes/groups")(app);
 require("./routes/tasks")(app);
+require("./routes/reports")(app);
 
 
 

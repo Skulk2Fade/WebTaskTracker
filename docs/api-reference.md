@@ -57,5 +57,11 @@ Update email reminder and notification preferences.
 You can also enable SMS notifications and provide a custom template using
 placeholders like `{{text}}`, `{{due}}`, `{{event}}` and `{{comment}}`.
 
+## Reports
+
+### `GET /api/reports`
+Return summary information for the authenticated user including recently
+completed task counts and time tracked per group.
+
 For additional routes such as groups, attachments and administrative
 endpoints refer to the [OpenAPI specification](openapi.yaml).
