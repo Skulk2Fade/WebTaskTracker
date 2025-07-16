@@ -223,6 +223,37 @@ module.exports = function(app) {
     }
   });
 
+  app.get('/api/tasks/gantt', requireAuth, async (req, res) => {
+    try {
+      const tasks = await db.listTasks({
+        userId: req.session.userId,
+        sort: 'dueDate'
+      });
+      const map = new Map(tasks.map(t => [t.id, t]));
+      const gantt = tasks.map(t => {
+        let start = t.dueDate || null;
+        if (t.dependencies && t.dependencies.length) {
+          for (const depId of t.dependencies) {
+            const dep = map.get(depId);
+            if (dep && dep.dueDate) {
+              if (!start || dep.dueDate > start) start = dep.dueDate;
+            }
+          }
+        }
+        return {
+          id: t.id,
+          text: t.text,
+          startDate: start,
+          dueDate: t.dueDate,
+          dependencies: t.dependencies
+        };
+      });
+      res.json(gantt);
+    } catch (err) {
+      handleError(res, err, 'Failed to generate gantt data');
+    }
+  });
+
   app.post('/api/tasks/import', requireAuth, requireWriter, async (req, res) => {
     const ct = req.headers['content-type'] || '';
     let format = 'json';
