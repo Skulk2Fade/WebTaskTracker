@@ -1372,3 +1372,40 @@ test('user reports include completions and time totals', async () => {
   expect(res.body.completedPerWeek.length).toBeGreaterThan(0);
   expect(res.body.timePerGroup[0].minutes).toBeGreaterThan(0);
 });
+
+test('gantt endpoint returns tasks with dependencies', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'gantt', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'T1', dueDate: '2099-01-01' });
+  const id1 = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'T2', dueDate: '2099-01-05' });
+  const id2 = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${id2}/dependencies`)
+    .set('CSRF-Token', token)
+    .send({ dependsOn: id1 });
+
+  res = await agent.get('/api/tasks/gantt');
+  expect(res.status).toBe(200);
+  expect(res.body.length).toBe(2);
+  const task2 = res.body.find(t => t.id === id2);
+  expect(task2.dependencies).toContain(id1);
+  expect(task2.startDate).toBe('2099-01-05');
+});

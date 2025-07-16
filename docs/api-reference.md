@@ -42,6 +42,10 @@ Log minutes spent on a task by the current user.
 ### `GET /api/tasks/{id}/time`
 List all recorded time entries for a task.
 
+### `GET /api/tasks/gantt`
+Return tasks formatted for a basic Gantt chart. Each entry includes a
+`startDate`, `dueDate` and list of `dependencies`.
+
 ## Reminders
 
 ### `GET /api/reminders`

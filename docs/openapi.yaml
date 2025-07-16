@@ -181,6 +181,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TimeEntry'
+  /api/tasks/gantt:
+    get:
+      summary: Gantt chart data
+      responses:
+        '200':
+          description: Array of Gantt tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GanttTask'
   /api/reports:
     get:
       summary: User reports
@@ -276,3 +288,20 @@ components:
         createdAt:
           type: string
           format: date-time
+    GanttTask:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        startDate:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        dependencies:
+          type: array
+          items:
+            type: integer
