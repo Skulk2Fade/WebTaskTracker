@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const db = require('../db');
 const email = require('../email');
 const sms = require('../sms');
+const push = require('../push');
+const slack = require('../slack');
+const teams = require('../teams');
 const webhooks = require('../webhooks');
 const { tasksToIcs, fromIcs } = require('../icsUtil');
 const calendarSync = require('../calendarSync');
@@ -290,6 +293,15 @@ module.exports = function(app) {
           if (user.notifySms && user.phoneNumber) {
             await sms.sendSms(user.phoneNumber, body);
           }
+          if (user.pushToken) {
+            await push.sendPush(user.pushToken, 'Task Reminder', body);
+          }
+          if (user.slackId) {
+            await slack.sendSlack(user.slackId, body);
+          }
+          if (user.teamsId) {
+            await teams.sendTeams(user.teamsId, body);
+          }
         }
       }
       for (const t of tasks) {
@@ -406,6 +418,15 @@ module.exports = function(app) {
       }
       if (user.notifySms && user.phoneNumber) {
         await sms.sendSms(user.phoneNumber, assignBody);
+      }
+      if (user.pushToken) {
+        await push.sendPush(user.pushToken, 'Task Assigned', assignBody);
+      }
+      if (user.slackId) {
+        await slack.sendSlack(user.slackId, assignBody);
+      }
+      if (user.teamsId) {
+        await teams.sendTeams(user.teamsId, assignBody);
       }
       await db.createHistory({
         taskId: updated.id,
@@ -566,12 +587,36 @@ module.exports = function(app) {
             taskId: updated.id,
             text: updated.text
           });
+          const owner = await db.getUserById(updated.userId);
+          if (owner) {
+            if (owner.pushToken) {
+              await push.sendPush(owner.pushToken, 'Task Completed', updated.text);
+            }
+            if (owner.slackId) {
+              await slack.sendSlack(owner.slackId, `Task completed: ${updated.text}`);
+            }
+            if (owner.teamsId) {
+              await teams.sendTeams(owner.teamsId, `Task completed: ${updated.text}`);
+            }
+          }
         }
         if (updated.assignedTo && updated.assignedTo !== updated.userId) {
           sendSse(updated.assignedTo, 'task_completed', {
             taskId: updated.id,
             text: updated.text
           });
+          const assignee = await db.getUserById(updated.assignedTo);
+          if (assignee) {
+            if (assignee.pushToken) {
+              await push.sendPush(assignee.pushToken, 'Task Completed', updated.text);
+            }
+            if (assignee.slackId) {
+              await slack.sendSlack(assignee.slackId, `Task completed: ${updated.text}`);
+            }
+            if (assignee.teamsId) {
+              await teams.sendTeams(assignee.teamsId, `Task completed: ${updated.text}`);
+            }
+          }
         }
       } else {
         await db.createHistory({
@@ -763,6 +808,15 @@ module.exports = function(app) {
           }
           if (user.notifySms && user.phoneNumber) {
             await sms.sendSms(user.phoneNumber, commentBody);
+          }
+          if (user.pushToken) {
+            await push.sendPush(user.pushToken, 'Task Comment', commentBody);
+          }
+          if (user.slackId) {
+            await slack.sendSlack(user.slackId, commentBody);
+          }
+          if (user.teamsId) {
+            await teams.sendTeams(user.teamsId, commentBody);
           }
           sendSse(user.id, 'task_commented', { taskId, text });
         }

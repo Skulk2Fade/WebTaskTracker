@@ -13,6 +13,9 @@ module.exports = function(app) {
         notifySms: !!user.notifySms,
         phoneNumber: user.phoneNumber || null,
         notificationTemplate: user.notificationTemplate || null,
+        pushToken: user.pushToken || null,
+        slackId: user.slackId || null,
+        teamsId: user.teamsId || null,
         timezone: user.timezone || 'UTC'
       });
     } catch (err) {
@@ -27,6 +30,9 @@ module.exports = function(app) {
       notifySms,
       phoneNumber,
       notificationTemplate,
+      pushToken,
+      slackId,
+      teamsId,
       timezone
     } = req.body;
     try {
@@ -36,6 +42,9 @@ module.exports = function(app) {
         notifySms,
         phoneNumber,
         notificationTemplate,
+        pushToken,
+        slackId,
+        teamsId,
         timezone
       });
       res.json({
@@ -44,6 +53,9 @@ module.exports = function(app) {
         notifySms: !!user.notifySms,
         phoneNumber: user.phoneNumber || null,
         notificationTemplate: user.notificationTemplate || null,
+        pushToken: user.pushToken || null,
+        slackId: user.slackId || null,
+        teamsId: user.teamsId || null,
         timezone: user.timezone || 'UTC'
       });
     } catch (err) {
