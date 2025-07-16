@@ -97,6 +97,13 @@ label {
   border: 1px solid #e0c200;
 }
 
+#sync-message {
+  margin-bottom: 10px;
+  background: #c8e6c9;
+  padding: 4px;
+  border: 1px solid #2e7d32;
+}
+
 /* Responsive layout for small screens */
 @media (max-width: 600px) {
   body {
