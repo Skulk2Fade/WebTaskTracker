@@ -7,7 +7,8 @@
     "start": "node server.js",
     "test": "jest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "setup-tests": "sh scripts/setup-tests.sh"
   },
   "dependencies": {
     "express": "^4.18.2",

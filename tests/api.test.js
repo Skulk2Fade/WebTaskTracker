@@ -1409,3 +1409,75 @@ test('gantt endpoint returns tasks with dependencies', async () => {
   expect(task2.dependencies).toContain(id1);
   expect(task2.startDate).toBe('2099-01-05');
 });
+
+test('ICS feed includes priority and status fields', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'icstest', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Priority', priority: 'high' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .put(`/api/tasks/${taskId}`)
+    .set('CSRF-Token', token)
+    .send({ done: true });
+
+  res = await agent.get('/api/tasks/ics');
+  expect(res.status).toBe(200);
+  expect(res.text).toMatch(/PRIORITY:1/);
+  expect(res.text).toMatch(/STATUS:COMPLETED/);
+});
+
+test('attachments cannot be accessed by other users', async () => {
+  const alice = request.agent(app);
+  const bob = request.agent(app);
+
+  let token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  await alice
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'alice', password: 'Passw0rd!' });
+
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'bob', password: 'Passw0rd!' });
+
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  let res = await alice
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Private' });
+  const taskId = res.body.id;
+
+  token = (await alice.get('/api/csrf-token')).body.csrfToken;
+  res = await alice
+    .post(`/api/tasks/${taskId}/attachments`)
+    .set('CSRF-Token', token)
+    .send({
+      filename: 'secret.txt',
+      mimeType: 'text/plain',
+      content: Buffer.from('secret').toString('base64')
+    });
+  const attachId = res.body.id;
+
+  token = (await bob.get('/api/csrf-token')).body.csrfToken;
+  await bob
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'bob', password: 'Passw0rd!' });
+
+  const res2 = await bob.get(`/api/attachments/${attachId}`);
+  expect(res2.status).toBe(404);
+});

@@ -159,11 +159,16 @@ await fetch('/api/tasks', {
 ## Testing
 
 Automated tests are provided using Jest. Make sure all dependencies, including
-the Jest test runner, are installed first:
+the Jest test runner, are installed first. Some environments install only
+production packages which will omit Jest. Run the helper script to ensure all
+dev dependencies are present:
 
 ```bash
-npm install
+npm run setup-tests
 ```
+
+This runs `npm install --include=dev` under the hood. If you prefer, run that
+command directly instead of using the script.
 
 Run the suite with:
 
