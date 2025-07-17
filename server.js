@@ -4,6 +4,7 @@ const logger = require('./logger');
 const db = require('./db');
 const session = require('express-session');
 const SQLiteStore = require('./sqliteStore');
+const PostgresStore = require('./postgresStore');
 const csurf = require('csurf');
 const helmet = require('helmet');
 const config = require('./config');
@@ -42,6 +43,7 @@ const loginLimiter = rateLimiter(15 * 60 * 1000, 10, 'login', db);
 const {
   SESSION_SECRET,
   DB_FILE,
+  DATABASE_URL,
   PORT,
 } = config;
 
@@ -52,14 +54,16 @@ app.use(
   express.text({ type: ['text/csv', 'application/csv', 'text/calendar'] })
 );
 const sessionSecret = SESSION_SECRET;
+const sessionStore = DATABASE_URL
+  ? new PostgresStore({ dbUrl: DATABASE_URL })
+  : new SQLiteStore({ dbFile: DB_FILE });
+
 app.use(
   session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    store: new SQLiteStore({
-      dbFile: DB_FILE,
-    }),
+    store: sessionStore,
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
