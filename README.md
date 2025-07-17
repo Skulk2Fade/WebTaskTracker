@@ -1,7 +1,8 @@
 # Web Task Tracker
 
 This is a simple Express-based task tracker.
-Tasks are persisted in a local SQLite database (`tasks.db`).
+Tasks are persisted in a local SQLite database (`tasks.db`) by default.
+Set the `DATABASE_URL` environment variable to use PostgreSQL instead.
 Each user has their own task list after logging in. Tasks can optionally be assigned to another user as well as given a category label so they can be filtered and grouped.
 You can also search your tasks by keyword across both task text and comments using the search bar or by sending a `search` query parameter to the `/api/tasks` endpoint. Search strings may include simple boolean expressions using `AND`, `OR` and `NOT` to match complex queries. In addition to filtering by multiple categories with the `categories` parameter and limiting results with `startDate`/`endDate`, you can filter by tags using either a comma separated `tags` list or a boolean expression with `tagQuery`.
 Results can be paginated with `page` and `pageSize` query parameters to more easily navigate large task lists.
@@ -22,7 +23,8 @@ npm install
 ```
 
 This will install `sqlite3` which is used for persistence. The database file
-`tasks.db` will be created automatically on first run.
+`tasks.db` will be created automatically on first run. If `DATABASE_URL` is
+set you should also install `pg` so the server can connect to PostgreSQL.
 Indexes on the `dueDate`, `userId` and `assignedTo` columns are created to keep
 common task queries fast.
 Session data is also stored in this database so it survives server restarts.

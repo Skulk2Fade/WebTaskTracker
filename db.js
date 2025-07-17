@@ -1,11 +1,9 @@
-const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const sqlite3 = require('sqlite3').verbose();
+const { createDb } = require('./dbClient');
 const { buildSearchClause, matchesTagQuery } = require('./searchUtil');
 
-const DB_FILE = process.env.DB_FILE || path.join(__dirname, 'tasks.db');
-const db = new sqlite3.Database(DB_FILE);
+const db = createDb();
 const prepared = {};
 
 function formatTags(tags) {

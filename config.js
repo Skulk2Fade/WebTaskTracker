@@ -27,6 +27,7 @@ const config = {
   SESSION_SECRET: requiredStr('SESSION_SECRET'),
   PORT: num('PORT', 3000),
   DB_FILE: str('DB_FILE', path.join(__dirname, 'tasks.db')),
+  DATABASE_URL: str('DATABASE_URL', ''),
   BCRYPT_ROUNDS: num('BCRYPT_ROUNDS', 12),
   DUE_SOON_CHECK_INTERVAL: num('DUE_SOON_CHECK_INTERVAL', 60000),
   DUE_SOON_BATCH_SIZE: num('DUE_SOON_BATCH_SIZE', 50),
