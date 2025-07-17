@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-const TOTP_STEP = parseInt(process.env.TOTP_STEP, 10) || 30;
+const { TOTP_STEP } = require('./config');
 
 function base32Encode(buf) {
   let bits = 0;
@@ -47,7 +47,8 @@ function totpToken(secret, step = TOTP_STEP, counterOffset = 0) {
   const counter = Math.floor(Date.now() / 1000 / step) + counterOffset;
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64BE(BigInt(counter));
-  const hmac = crypto.createHmac('sha1', Buffer.from(secret, 'hex'))
+  const hmac = crypto
+    .createHmac('sha1', Buffer.from(secret, 'hex'))
     .update(buf)
     .digest();
   const offset = hmac[hmac.length - 1] & 0xf;
@@ -72,5 +73,5 @@ module.exports = {
   generateToken,
   base32Encode,
   base32Decode,
-  TOTP_STEP
+  TOTP_STEP,
 };
