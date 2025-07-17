@@ -380,3 +380,21 @@ scripts/setup-providers.sh
 When these variables are present and `@sendgrid/mail` or `twilio` are available,
 notifications will be sent through those services instead of being stored in
 memory for tests.
+
+## Docker
+
+You can run the application in a container for a reproducible environment.
+Build the image with:
+
+```bash
+docker build -t web-task-tracker .
+```
+
+Start the server by passing in the required environment variables:
+
+```bash
+docker run -p 3000:3000 -e SESSION_SECRET=your_secret web-task-tracker
+```
+
+The container installs dependencies using `npm ci` and launches the server
+with `npm start` so you don't need Node.js installed locally.
