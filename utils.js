@@ -40,6 +40,9 @@ function sendSse(userId, type, data) {
     res.write(payload);
   }
 }
+function getSseClientIds() {
+  return Array.from(sseClients.keys());
+}
 
 function formatTemplate(template, vars) {
   if (!template) return null;
@@ -190,6 +193,7 @@ module.exports = {
   rateLimiter,
   addSseClient,
   sendSse,
+  getSseClientIds,
   formatTemplate,
   ALLOWED_MIME_TYPES,
   getDirSize,
