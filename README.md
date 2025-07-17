@@ -33,6 +33,7 @@ your session from client-side access and CSRF attacks. Additional HTTP
 security headers like HSTS and XSS protection are set using the
 `helmet` middleware.
 A Content Security Policy further restricts resource loading to this server and cdn.jsdelivr.net.
+
 ## Linting and Formatting
 
 Run ESLint to check for coding issues and Prettier to automatically format files:
@@ -41,7 +42,6 @@ Run ESLint to check for coding issues and Prettier to automatically format files
 npm run lint
 npm run format
 ```
-
 
 ## Usage
 
@@ -54,7 +54,9 @@ npm start
 
 An `.env.example` file lists all environment variables used by the application.
 Copy it to `.env`, edit the values and `source .env` (or otherwise export the
-variables) before starting the server.
+variables) before starting the server. Configuration values are validated at
+startup and the server will exit with a clear error message if any are missing
+or malformed.
 
 The server will run on port 3000 by default if no `PORT` variable is set.
 You can configure the bcrypt work factor with the `BCRYPT_ROUNDS` environment
@@ -150,7 +152,7 @@ const { csrfToken } = await res.json();
 await fetch('/api/tasks', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
-  body: JSON.stringify({ text: 'Example task' })
+  body: JSON.stringify({ text: 'Example task' }),
 });
 ```
 
@@ -374,7 +376,6 @@ You can also run the helper script to automate this step:
 ```bash
 scripts/setup-providers.sh
 ```
-
 
 When these variables are present and `@sendgrid/mail` or `twilio` are available,
 notifications will be sent through those services instead of being stored in

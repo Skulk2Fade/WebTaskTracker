@@ -16,24 +16,24 @@ const sms = require('./sms');
 const webhooks = require('./webhooks');
 const { tasksToIcs, fromIcs } = require('./icsUtil');
 const calendarSync = require('./calendarSync');
-const config = require("./config");
+const config = require('./config');
 const {
   rateLimiter,
   addSseClient,
   sendSse,
   getFreeSpace,
   handleError,
-  getSseClientIds
-} = require("./utils");
+  getSseClientIds,
+} = require('./utils');
 
 let passport;
 let GoogleStrategy;
 let GitHubStrategy;
 const enableGoogle = Boolean(
-  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET
 );
 const enableGithub = Boolean(
-  process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+  config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET
 );
 if (enableGoogle || enableGithub) {
   try {
@@ -52,19 +52,40 @@ if (enableGoogle || enableGithub) {
     process.exit(1);
   }
 } else {
-  logger.warn('OAuth environment variables not set; skipping Passport initialization');
+  logger.warn(
+    'OAuth environment variables not set; skipping Passport initialization'
+  );
 }
 const app = express();
 app.use(helmet());
-app.use(helmet.contentSecurityPolicy({ directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", "https://cdn.jsdelivr.net"], styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", "data:"] } }));
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+    },
+  })
+);
 
 const apiLimiter = rateLimiter(15 * 60 * 1000, 100, 'api', db);
 const loginLimiter = rateLimiter(15 * 60 * 1000, 10, 'login', db);
 
-const DUE_SOON_CHECK_INTERVAL =
-  parseInt(process.env.DUE_SOON_CHECK_INTERVAL, 10) || 60000;
-const DUE_SOON_BATCH_SIZE =
-  parseInt(process.env.DUE_SOON_BATCH_SIZE, 10) || 50;
+const {
+  SESSION_SECRET,
+  BCRYPT_ROUNDS,
+  TWO_FA_SECRET_TTL,
+  MAX_ATTACHMENT_SIZE,
+  ATTACHMENT_DIR,
+  ATTACHMENT_MIN_SPACE,
+  ATTACHMENT_QUOTA,
+  DUE_SOON_CHECK_INTERVAL,
+  DUE_SOON_BATCH_SIZE,
+  DB_FILE,
+  PORT,
+} = config;
+
 let dueSoonOffset = 0;
 
 async function checkDueSoon() {
@@ -88,7 +109,7 @@ async function checkDueSoon() {
           taskId: t.id,
           text: t.text,
           dueDate: t.dueDate,
-          dueTime: t.dueTime
+          dueTime: t.dueTime,
         });
       }
     } catch (err) {
@@ -98,20 +119,6 @@ async function checkDueSoon() {
 }
 
 setInterval(checkDueSoon, DUE_SOON_CHECK_INTERVAL);
-
-// Use a higher bcrypt work factor for stronger password hashing.
-// Configurable via the BCRYPT_ROUNDS environment variable.
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS, 10) || 12;
-const TWO_FA_SECRET_TTL = parseInt(process.env.TWO_FA_SECRET_TTL, 10) || 10 * 60 * 1000;
-
-const MAX_ATTACHMENT_SIZE =
-  parseInt(process.env.MAX_ATTACHMENT_SIZE, 10) || 10 * 1024 * 1024; // 10MB
-
-const ATTACHMENT_DIR = process.env.ATTACHMENT_DIR;
-const ATTACHMENT_MIN_SPACE =
-  parseInt(process.env.ATTACHMENT_MIN_SPACE, 10) || 0;
-const ATTACHMENT_QUOTA =
-  parseInt(process.env.ATTACHMENT_QUOTA, 10) || 0;
 
 if (ATTACHMENT_DIR) {
   const resolved = path.resolve(ATTACHMENT_DIR);
@@ -134,24 +141,20 @@ app.use(express.json());
 app.use(
   express.text({ type: ['text/csv', 'application/csv', 'text/calendar'] })
 );
-const sessionSecret = process.env.SESSION_SECRET;
-if (!sessionSecret) {
-  logger.error('SESSION_SECRET environment variable is required');
-  process.exit(1);
-}
+const sessionSecret = SESSION_SECRET;
 app.use(
   session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store: new SQLiteStore({
-      dbFile: process.env.DB_FILE || path.join(__dirname, 'tasks.db')
+      dbFile: DB_FILE,
     }),
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
-    }
+      sameSite: 'lax',
+    },
   })
 );
 if (passport) {
@@ -177,16 +180,18 @@ if (passport) {
     passport.use(
       new GoogleStrategy(
         {
-          clientID: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: '/auth/google/callback'
+          clientID: config.GOOGLE_CLIENT_ID,
+          clientSecret: config.GOOGLE_CLIENT_SECRET,
+          callbackURL: '/auth/google/callback',
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
             let user = await db.getUserByGoogleId(profile.id);
             if (!user) {
               const username =
-                (profile.emails && profile.emails[0] && profile.emails[0].value) ||
+                (profile.emails &&
+                  profile.emails[0] &&
+                  profile.emails[0].value) ||
                 `google_${profile.id}`;
               user = await db.getUserByUsername(username);
               if (user) {
@@ -202,7 +207,7 @@ if (passport) {
                   username,
                   password: hash,
                   role,
-                  googleId: profile.id
+                  googleId: profile.id,
                 });
               }
             }
@@ -214,7 +219,10 @@ if (passport) {
       )
     );
 
-    app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+    app.get(
+      '/auth/google',
+      passport.authenticate('google', { scope: ['profile', 'email'] })
+    );
     app.get(
       '/auth/google/callback',
       passport.authenticate('google', { failureRedirect: '/' }),
@@ -229,9 +237,9 @@ if (passport) {
     passport.use(
       new GitHubStrategy(
         {
-          clientID: process.env.GITHUB_CLIENT_ID,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET,
-          callbackURL: '/auth/github/callback'
+          clientID: config.GITHUB_CLIENT_ID,
+          clientSecret: config.GITHUB_CLIENT_SECRET,
+          callbackURL: '/auth/github/callback',
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
@@ -252,7 +260,7 @@ if (passport) {
                   username,
                   password: hash,
                   role,
-                  githubId: profile.id
+                  githubId: profile.id,
                 });
               }
             }
@@ -264,7 +272,10 @@ if (passport) {
       )
     );
 
-    app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+    app.get(
+      '/auth/github',
+      passport.authenticate('github', { scope: ['user:email'] })
+    );
     app.get(
       '/auth/github/callback',
       passport.authenticate('github', { failureRedirect: '/' }),
@@ -284,7 +295,7 @@ app.get('/api/events', requireAuth, (req, res) => {
   res.set({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    Connection: 'keep-alive'
+    Connection: 'keep-alive',
   });
   res.flushHeaders();
   addSseClient(req.session.userId, res);
@@ -335,14 +346,12 @@ async function requireAdmin(req, res, next) {
     next(err);
   }
 }
-require("./routes/auth")(app, loginLimiter);
-require("./routes/admin")(app);
-require("./routes/preferences")(app);
-require("./routes/groups")(app);
-require("./routes/tasks")(app);
-require("./routes/reports")(app);
-
-
+require('./routes/auth')(app, loginLimiter);
+require('./routes/admin')(app);
+require('./routes/preferences')(app);
+require('./routes/groups')(app);
+require('./routes/tasks')(app);
+require('./routes/reports')(app);
 
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
@@ -355,7 +364,6 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
 }
 
