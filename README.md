@@ -353,6 +353,18 @@ folding rules of the specification. Each entry now
 includes `PRIORITY` and `STATUS` fields so you can see task importance and
 whether it has been completed directly in your calendar.
 
+## Advanced Analytics
+
+Managers can request aggregate completion statistics by calling:
+
+```
+GET /api/admin/analytics?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&userId=1&groupId=2
+```
+
+The JSON response contains `avgCompletionMinutes` grouped by category and
+`completedPerDay` showing daily completion counts. Append `format=csv` or
+`format=pdf` to download the report in those formats.
+
 ## Webhooks
 
 You can configure outgoing webhooks by setting the `WEBHOOK_URLS` environment
