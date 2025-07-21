@@ -1512,3 +1512,53 @@ test('attachments cannot be accessed by other users', async () => {
   const res2 = await bob.get(`/api/attachments/${attachId}`);
   expect(res2.status).toBe(404);
 });
+
+test('clone task and use templates', async () => {
+  const agent = request.agent(app);
+
+  let token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'templ', password: 'Passw0rd!' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  let res = await agent
+    .post('/api/tasks')
+    .set('CSRF-Token', token)
+    .send({ text: 'Orig' });
+  const taskId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post(`/api/tasks/${taskId}/subtasks`)
+    .set('CSRF-Token', token)
+    .send({ text: 'Sub' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/tasks/${taskId}/clone`)
+    .set('CSRF-Token', token);
+  expect(res.status).toBe(201);
+  const cloneId = res.body.id;
+
+  const subs = await agent.get(`/api/tasks/${cloneId}/subtasks`);
+  expect(subs.body.length).toBe(1);
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post('/api/task-templates')
+    .set('CSRF-Token', token)
+    .send({ name: 'tpl', taskId });
+  expect(res.status).toBe(201);
+  const tplId = res.body.id;
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  res = await agent
+    .post(`/api/task-templates/${tplId}/use`)
+    .set('CSRF-Token', token);
+  expect(res.status).toBe(201);
+
+  const list = await agent.get('/api/tasks');
+  expect(list.body.length).toBe(3);
+});

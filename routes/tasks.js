@@ -1076,4 +1076,68 @@ module.exports = function(app) {
       handleError(res, err, 'Failed to load history');
     }
   });
+
+  app.post('/api/tasks/:id/clone', requireAuth, requireWriter, async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+      const task = await db.cloneTask(id, req.session.userId);
+      if (!task) return res.status(404).json({ error: 'Task not found' });
+      res.status(201).json(task);
+    } catch (err) {
+      handleError(res, err, 'Failed to clone task');
+    }
+  });
+
+  app.get('/api/task-templates', requireAuth, async (req, res) => {
+    try {
+      const templates = await db.listTaskTemplates();
+      res.json(templates);
+    } catch (err) {
+      handleError(res, err, 'Failed to load templates');
+    }
+  });
+
+  app.post('/api/task-templates', requireAuth, requireWriter, async (req, res) => {
+    const { name, taskId } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name required' });
+    try {
+      let taskData;
+      if (taskId) {
+        const task = await db.getTask(taskId, req.session.userId);
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+        const subs = await db.listSubtasks(taskId, req.session.userId);
+        taskData = { ...task, subtasks: subs };
+      } else if (req.body.task) {
+        taskData = req.body.task;
+      } else {
+        return res.status(400).json({ error: 'taskId or task required' });
+      }
+      const tpl = await db.createTaskTemplate({ name, task: taskData });
+      res.status(201).json(tpl);
+    } catch (err) {
+      handleError(res, err, 'Failed to create template');
+    }
+  });
+
+  app.delete('/api/task-templates/:id', requireAuth, requireWriter, async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+      const ok = await db.deleteTaskTemplate(id);
+      if (!ok) return res.status(404).json({ error: 'Template not found' });
+      res.json({ ok: true });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete template');
+    }
+  });
+
+  app.post('/api/task-templates/:id/use', requireAuth, requireWriter, async (req, res) => {
+    const id = parseInt(req.params.id);
+    try {
+      const task = await db.useTaskTemplate(id, req.session.userId);
+      if (!task) return res.status(404).json({ error: 'Template not found' });
+      res.status(201).json(task);
+    } catch (err) {
+      handleError(res, err, 'Failed to use template');
+    }
+  });
 };

@@ -216,6 +216,82 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
+  /api/tasks/{id}/clone:
+    post:
+      summary: Clone an existing task
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Cloned task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /api/task-templates:
+    get:
+      summary: List task templates
+      responses:
+        '200':
+          description: Array of templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskTemplate'
+    post:
+      summary: Create a task template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                taskId:
+                  type: integer
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTemplate'
+  /api/task-templates/{id}/use:
+    post:
+      summary: Create a task from a template
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /api/task-templates/{id}:
+    delete:
+      summary: Delete a task template
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
   /api/reports:
     get:
       summary: User reports
@@ -328,3 +404,12 @@ components:
           type: array
           items:
             type: integer
+    TaskTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        task:
+          $ref: '#/components/schemas/Task'

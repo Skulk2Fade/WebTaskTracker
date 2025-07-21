@@ -51,6 +51,21 @@ Import open issues from a GitHub repository as tasks. Provide an `owner` and
 `repo` in the request body. The server uses the `GITHUB_API_TOKEN` environment
 variable for authentication with GitHub.
 
+### `POST /api/tasks/{id}/clone`
+Create a new task by cloning an existing one along with its subtasks.
+
+### `GET /api/task-templates`
+List all saved task templates.
+
+### `POST /api/task-templates`
+Create a template from an existing task by providing a `name` and `taskId`.
+
+### `POST /api/task-templates/{id}/use`
+Create a new task based on the specified template.
+
+### `DELETE /api/task-templates/{id}`
+Remove a task template.
+
 ## Reminders
 
 ### `GET /api/reminders`
