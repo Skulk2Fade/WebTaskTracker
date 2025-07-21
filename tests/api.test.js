@@ -1385,6 +1385,25 @@ test('user reports include completions and time totals', async () => {
   expect(res.body.timePerGroup[0].minutes).toBeGreaterThan(0);
 });
 
+test('advanced analytics endpoint returns csv', async () => {
+  const admin = request.agent(app);
+  let token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/register')
+    .set('CSRF-Token', token)
+    .send({ username: 'analyticsAdmin', password: 'Passw0rd!' });
+
+  token = (await admin.get('/api/csrf-token')).body.csrfToken;
+  await admin
+    .post('/api/login')
+    .set('CSRF-Token', token)
+    .send({ username: 'analyticsAdmin', password: 'Passw0rd!' });
+
+  const res = await admin.get('/api/admin/analytics?format=csv');
+  expect(res.status).toBe(200);
+  expect(res.text).toContain('category');
+});
+
 test('gantt endpoint returns tasks with dependencies', async () => {
   const agent = request.agent(app);
 

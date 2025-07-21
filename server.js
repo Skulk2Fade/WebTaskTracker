@@ -89,6 +89,7 @@ require('./routes/groups')(app);
 require('./routes/statuses')(app);
 require('./routes/tasks')(app);
 require('./routes/reports')(app);
+require('./routes/analytics')(app);
 
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {

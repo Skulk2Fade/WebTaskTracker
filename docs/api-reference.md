@@ -72,5 +72,11 @@ placeholders like `{{text}}`, `{{due}}`, `{{event}}` and `{{comment}}`.
 Return summary information for the authenticated user including recently
 completed task counts and time tracked per group.
 
+### `GET /api/admin/analytics`
+Generate aggregated completion statistics. Optional query parameters
+`startDate`, `endDate`, `userId` and `groupId` limit which tasks are
+included. Set `format=csv` or `format=pdf` to download the report instead of
+JSON.
+
 For additional routes such as groups, attachments and administrative
 endpoints refer to the [OpenAPI specification](openapi.yaml).

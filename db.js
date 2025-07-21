@@ -1795,6 +1795,51 @@ function getUserReports(userId) {
   });
 }
 
+function getAdvancedReport({ startDate, endDate, userId, groupId }) {
+  return new Promise((resolve, reject) => {
+    const params = [];
+    let where = "WHERE th.action = 'completed'";
+    if (startDate) {
+      where += ' AND date(th.createdAt) >= date(?)';
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ' AND date(th.createdAt) <= date(?)';
+      params.push(endDate);
+    }
+    if (userId) {
+      where += ' AND th.userId = ?';
+      params.push(userId);
+    }
+    if (groupId) {
+      where += ' AND tasks.groupId = ?';
+      params.push(groupId);
+    }
+    const trendSql =
+      `SELECT date(th.createdAt) AS date, COUNT(*) AS count ` +
+      `FROM task_history th JOIN tasks ON tasks.id = th.taskId ` +
+      `${where} GROUP BY date ORDER BY date`;
+    db.all(trendSql, params, (err, trendRows) => {
+      if (err) return reject(err);
+      const timeSql =
+        `SELECT COALESCE(tasks.category, 'Uncategorized') AS category, ` +
+        `AVG(minutes) AS avgMinutes FROM (SELECT tasks.id, tasks.category, ` +
+        `SUM(COALESCE(time_entries.minutes,0)) AS minutes FROM tasks ` +
+        `JOIN task_history th ON th.taskId = tasks.id ` +
+        `LEFT JOIN time_entries ON time_entries.taskId = tasks.id ` +
+        `${where} GROUP BY tasks.id) sub JOIN tasks ON tasks.id = sub.id ` +
+        `GROUP BY category ORDER BY category`;
+      db.all(timeSql, params, (err2, timeRows) => {
+        if (err2) return reject(err2);
+        resolve({
+          completedPerDay: trendRows || [],
+          avgCompletionMinutes: timeRows || [],
+        });
+      });
+    });
+  });
+}
+
 module.exports = {
   listTasks,
   createTask,
@@ -1840,6 +1885,7 @@ module.exports = {
   getStats,
   getReports,
   getUserReports,
+  getAdvancedReport,
   createHistory,
   listHistory,
   incrementFailedLoginAttempts,
