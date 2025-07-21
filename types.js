@@ -21,7 +21,7 @@
  * @property {string} [dueDate]
  * @property {string} [dueTime]
  * @property {'high'|'medium'|'low'} priority
- * @property {'todo'|'in progress'|'blocked'|'completed'} status
+ * @property {string} status
  * @property {boolean} done
  * @property {number} [userId]
  * @property {string} [category]

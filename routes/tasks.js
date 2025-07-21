@@ -405,6 +405,9 @@ module.exports = function(app) {
     if (repeatInterval === 'custom' && !isValidRecurrenceRule(recurrenceRule)) {
       return res.status(400).json({ error: 'Invalid recurrence rule' });
     }
+    if (!(await db.statusExists(status))) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
     try {
       let assigneeId = assignedTo;
       if (assigneeId !== undefined) {
@@ -572,6 +575,9 @@ module.exports = function(app) {
     }
     if (repeatInterval === 'custom' && !isValidRecurrenceRule(recurrenceRule)) {
       return res.status(400).json({ error: 'Invalid recurrence rule' });
+    }
+    if (status !== undefined && !(await db.statusExists(status))) {
+      return res.status(400).json({ error: 'Invalid status' });
     }
     try {
       const oldTask = await db.getTask(id, req.session.userId);

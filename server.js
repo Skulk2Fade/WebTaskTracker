@@ -86,6 +86,7 @@ require('./routes/auth')(app, loginLimiter);
 require('./routes/admin')(app);
 require('./routes/preferences')(app);
 require('./routes/groups')(app);
+require('./routes/statuses')(app);
 require('./routes/tasks')(app);
 require('./routes/reports')(app);
 

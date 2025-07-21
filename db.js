@@ -117,6 +117,11 @@ db.serialize(() => {
     name TEXT UNIQUE NOT NULL
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS statuses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS group_members (
     groupId INTEGER NOT NULL,
     userId INTEGER NOT NULL,
@@ -263,6 +268,14 @@ db.serialize(() => {
     }
     if (!cols.some(c => c.name === 'lockUntil')) {
       db.run('ALTER TABLE users ADD COLUMN lockUntil TEXT');
+    }
+  });
+
+  db.get('SELECT COUNT(*) AS c FROM statuses', (err, row) => {
+    if (!err && row && row.c === 0) {
+      for (const name of ['todo', 'in progress', 'blocked', 'completed']) {
+        db.run('INSERT INTO statuses (name) VALUES (?)', [name]);
+      }
     }
   });
 });
@@ -1610,6 +1623,56 @@ function listUserGroups(userId) {
   });
 }
 
+function listStatuses() {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM statuses ORDER BY id', (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+}
+
+function createStatus(name) {
+  return new Promise((resolve, reject) => {
+    db.run('INSERT INTO statuses (name) VALUES (?)', [name], function (err) {
+      if (err) return reject(err);
+      resolve({ id: this.lastID, name });
+    });
+  });
+}
+
+function updateStatus(id, name) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE statuses SET name = ? WHERE id = ?',
+      [name, id],
+      function (err) {
+        if (err) return reject(err);
+        if (this.changes === 0) return resolve(null);
+        resolve({ id, name });
+      }
+    );
+  });
+}
+
+function deleteStatus(id) {
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM statuses WHERE id = ?', [id], function (err) {
+      if (err) return reject(err);
+      resolve(this.changes > 0);
+    });
+  });
+}
+
+function statusExists(name) {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT id FROM statuses WHERE name = ?', [name], (err, row) => {
+      if (err) return reject(err);
+      resolve(!!row);
+    });
+  });
+}
+
 function countUsers() {
   return new Promise((resolve, reject) => {
     db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
@@ -1789,5 +1852,10 @@ module.exports = {
   setTaskPermission,
   removeTaskPermission,
   getTaskPermission,
-  incrementRateLimit
+  incrementRateLimit,
+  listStatuses,
+  createStatus,
+  updateStatus,
+  deleteStatus,
+  statusExists
 };

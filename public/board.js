@@ -1,5 +1,6 @@
 let currentUser = null;
 let csrfToken = '';
+let workflowStatuses = [];
 
 function isStrongPassword(pw) {
   return (
@@ -28,6 +29,13 @@ async function updateCsrfToken() {
   const res = await fetch('/api/csrf-token');
   const data = await res.json();
   csrfToken = data.csrfToken;
+}
+
+async function fetchStatuses() {
+  const res = await fetch('/api/statuses');
+  if (res.ok) {
+    workflowStatuses = await res.json();
+  }
 }
 
 async function checkAuth() {
@@ -79,8 +87,13 @@ function renderBoard(tasks) {
   const groupBy = document.getElementById('group-select').value;
   const groups = {};
   if (groupBy === 'status') {
-    groups.Active = tasks.filter(t => !t.done);
-    groups.Completed = tasks.filter(t => t.done);
+    workflowStatuses.forEach(s => {
+      groups[s.name] = tasks.filter(t => t.status === s.name);
+    });
+    const others = tasks.filter(
+      t => !workflowStatuses.some(ws => ws.name === t.status)
+    );
+    if (others.length) groups.Other = others;
   } else {
     tasks.forEach(t => {
       const cat = t.category || 'None';
@@ -104,11 +117,12 @@ function renderBoard(tasks) {
       const id = e.dataTransfer.getData('text/plain');
       if (!id) return;
       if (groupBy === 'status') {
-        const done = name === 'Completed';
+        const body = { status: name };
+        body.done = name.toLowerCase() === 'completed';
         await fetch(`/api/tasks/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
-          body: JSON.stringify({ done })
+          body: JSON.stringify(body)
         });
       } else {
         const category = name === 'None' ? '' : name;
@@ -125,6 +139,7 @@ function renderBoard(tasks) {
 }
 
 async function loadBoard() {
+  await fetchStatuses();
   const tasks = await fetchTasks();
   renderBoard(tasks);
 }
