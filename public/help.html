@@ -14,7 +14,8 @@
     <nav role="navigation" aria-label="Main Navigation">
       <a href="index.html">Back to Tasks</a>
     </nav>
-    <button id="install-btn" style="display:none;">Install App</button>
+    <select id="lang-select"><option value="en">English</option><option value="es">Español</option></select>
+    <button id="install-btn" aria-label="Install App" data-i18n="installApp" style="display:none;">Install App</button>
   </header>
   <div class="container">
     <h2>Additional Features</h2>
@@ -31,6 +32,7 @@ POST /api/comments/:commentId/attachments/upload
 GET /api/attachments/:id</code></pre>
     <p>See the README or API reference for more details on these endpoints.</p>
   </div>
+  <script src="translate.js"></script>
   <script src="sw-register.js"></script>
 </body>
 </html>

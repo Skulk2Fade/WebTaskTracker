@@ -18,7 +18,8 @@
       <a id="admin-link" href="admin.html" style="display:none;">Admin Dashboard</a>
       <a href="help.html">Help</a>
     </nav>
-    <button id="install-btn" style="display:none;">Install App</button>
+    <select id="lang-select"><option value="en">English</option><option value="es">Español</option></select>
+    <button id="install-btn" aria-label="Install App" data-i18n="installApp" style="display:none;">Install App</button>
   </header>
   <div class="container">
   <ul id="notifications" style="display:none;"></ul>
@@ -70,6 +71,7 @@
   </div> <!-- end container -->
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="translate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
   <script src="board.js"></script>
   <script src="sw-register.js"></script>

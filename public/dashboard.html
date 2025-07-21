@@ -21,7 +21,8 @@
         >
         <a href="help.html">Help</a>
       </nav>
-      <button id="install-btn" style="display:none;">Install App</button>
+    <select id="lang-select"><option value="en">English</option><option value="es">Español</option></select>
+      <button id="install-btn" aria-label="Install App" data-i18n="installApp" style="display:none;">Install App</button>
     </header>
     <div class="container">
       <canvas
@@ -37,6 +38,7 @@
         aria-label="Time spent per group"
       ></canvas>
     </div>
+  <script src="translate.js"></script>
     <script src="dashboard.js"></script>
   </body>
 </html>
