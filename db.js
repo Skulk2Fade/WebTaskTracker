@@ -175,6 +175,12 @@ db.serialize(() => {
     count INTEGER NOT NULL
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS task_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    data TEXT NOT NULL
+  )`);
+
   // Add indexes to speed up common queries
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_dueDate ON tasks(dueDate)');
   db.run('CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId)');
@@ -1584,6 +1590,67 @@ function incrementRateLimit(key, windowMs) {
   });
 }
 
+function createTaskTemplate({ name, task }) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(task);
+    db.run(
+      `INSERT INTO task_templates (name, data) VALUES (?, ?)`,
+      [name, data],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ id: this.lastID, name, task });
+      }
+    );
+  });
+}
+
+function listTaskTemplates() {
+  return new Promise((resolve, reject) => {
+    db.all(`SELECT * FROM task_templates ORDER BY id`, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.map(r => ({ id: r.id, name: r.name, task: JSON.parse(r.data) })));
+    });
+  });
+}
+
+function deleteTaskTemplate(id) {
+  return new Promise((resolve, reject) => {
+    db.run(`DELETE FROM task_templates WHERE id = ?`, [id], function (err) {
+      if (err) return reject(err);
+      resolve(this.changes > 0);
+    });
+  });
+}
+
+async function useTaskTemplate(id, userId) {
+  const row = await new Promise((resolve, reject) => {
+    db.get(`SELECT * FROM task_templates WHERE id = ?`, [id], (err, r) => {
+      if (err) return reject(err);
+      resolve(r || null);
+    });
+  });
+  if (!row) return null;
+  const tpl = JSON.parse(row.data);
+  const { subtasks = [], ...taskData } = tpl;
+  const task = await createTask({ ...taskData, userId });
+  for (const s of subtasks) {
+    await createSubtask(task.id, s.text, userId);
+  }
+  return { ...task, subtasks: await listSubtasks(task.id, userId) };
+}
+
+async function cloneTask(id, userId) {
+  const original = await getTask(id, userId);
+  if (!original) return null;
+  const subs = await listSubtasks(id, userId);
+  const { id: _id, reminderSent, lastReminderDate, ...fields } = original;
+  const task = await createTask({ ...fields, userId: original.userId });
+  for (const s of subs) {
+    await createSubtask(task.id, s.text, original.userId);
+  }
+  return { ...task, subtasks: await listSubtasks(task.id, userId) };
+}
+
 function createGroup(name) {
   return new Promise((resolve, reject) => {
     db.run(
@@ -1899,6 +1966,11 @@ module.exports = {
   removeTaskPermission,
   getTaskPermission,
   incrementRateLimit,
+  createTaskTemplate,
+  listTaskTemplates,
+  deleteTaskTemplate,
+  useTaskTemplate,
+  cloneTask,
   listStatuses,
   createStatus,
   updateStatus,
