@@ -387,6 +387,12 @@ TWILIO_FROM_NUMBER=+15551234567
 FCM_SERVER_KEY=your_fcm_key
 SLACK_BOT_TOKEN=xoxb-your-token
 TEAMS_BOT_TOKEN=your_teams_token
+JIRA_API_TOKEN=your_jira_token
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_PROJECT_KEY=PROJ
+TRELLO_API_KEY=your_trello_key
+TRELLO_TOKEN=your_trello_token
+TRELLO_LIST_ID=list123
 ```
 
 Install the provider modules:
@@ -403,6 +409,11 @@ packages are required.
 Import GitHub issues by sending a POST request to `/api/tasks/import/github` with
 an `owner` and `repo`. Provide a `GITHUB_API_TOKEN` environment variable so the
 server can access your repositories.
+
+Import Jira issues with `/api/tasks/import/jira` by providing a `project` key
+and setting `JIRA_API_TOKEN`, `JIRA_BASE_URL` and `JIRA_PROJECT_KEY`.
+Trello cards can be imported using `/api/tasks/import/trello` with a
+`boardId` when `TRELLO_API_KEY`, `TRELLO_TOKEN` and `TRELLO_LIST_ID` are configured.
 
 If `HARVEST_TOKEN` and `HARVEST_ACCOUNT_ID` are set, any logged time entries are
 also forwarded to Harvest automatically.

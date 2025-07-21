@@ -216,6 +216,48 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
+  /api/tasks/import/jira:
+    post:
+      summary: Import tasks from Jira issues
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project:
+                  type: string
+      responses:
+        '201':
+          description: Array of created tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+  /api/tasks/import/trello:
+    post:
+      summary: Import tasks from Trello cards
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                boardId:
+                  type: string
+      responses:
+        '201':
+          description: Array of created tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
   /api/tasks/{id}/clone:
     post:
       summary: Clone an existing task
