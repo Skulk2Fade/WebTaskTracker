@@ -51,6 +51,14 @@ Import open issues from a GitHub repository as tasks. Provide an `owner` and
 `repo` in the request body. The server uses the `GITHUB_API_TOKEN` environment
 variable for authentication with GitHub.
 
+### `POST /api/tasks/import/jira`
+Import Jira issues as tasks by sending a `project` key in the request body. The
+server reads `JIRA_API_TOKEN`, `JIRA_BASE_URL` and `JIRA_PROJECT_KEY` for access.
+
+### `POST /api/tasks/import/trello`
+Import Trello cards with a `boardId` when `TRELLO_API_KEY` and `TRELLO_TOKEN`
+are configured.
+
 ### `POST /api/tasks/{id}/clone`
 Create a new task by cloning an existing one along with its subtasks.
 

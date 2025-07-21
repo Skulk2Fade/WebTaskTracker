@@ -7,6 +7,8 @@ const sms = require('../sms');
 const push = require('../push');
 const slack = require('../slack');
 const teams = require('../teams');
+const jira = require('../jira');
+const trello = require('../trello');
 const webhooks = require('../webhooks');
 const { tasksToIcs } = require('../icsUtil');
 
@@ -647,6 +649,8 @@ test('email notifications on assign, comment and reminder', async () => {
   push.clearPush();
   slack.clearSlack();
   teams.clearTeams();
+  jira.clearSynced();
+  trello.clearSynced();
   token = (await alice.get('/api/csrf-token')).body.csrfToken;
   let res = await alice
     .post('/api/tasks')
@@ -667,6 +671,8 @@ test('email notifications on assign, comment and reminder', async () => {
   push.clearPush();
   slack.clearSlack();
   teams.clearTeams();
+  jira.clearSynced();
+  trello.clearSynced();
   token = (await bob.get('/api/csrf-token')).body.csrfToken;
   await bob
     .post(`/api/tasks/${taskId}/comments`)
@@ -680,6 +686,8 @@ test('email notifications on assign, comment and reminder', async () => {
   push.clearPush();
   slack.clearSlack();
   teams.clearTeams();
+  jira.clearSynced();
+  trello.clearSynced();
   const today = new Date().toISOString().slice(0, 10);
   token = (await bob.get('/api/csrf-token')).body.csrfToken;
   await bob

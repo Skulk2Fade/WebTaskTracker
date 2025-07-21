@@ -9,6 +9,8 @@ const slack = require('../slack');
 const teams = require('../teams');
 const webhooks = require('../webhooks');
 const github = require('../github');
+const jira = require('../jira');
+const trello = require('../trello');
 const harvest = require('../harvest');
 const { tasksToIcs, fromIcs } = require('../icsUtil');
 const calendarSync = require('../calendarSync');
@@ -292,6 +294,8 @@ module.exports = function(app) {
           recurrenceRule: t.recurrenceRule || null
         });
         await calendarSync.syncTask(task);
+        await jira.syncTask(task);
+        await trello.syncTask(task);
         created.push(task);
       }
       res.status(201).json(created);
@@ -316,11 +320,65 @@ module.exports = function(app) {
           userId: req.session.userId
         });
         await calendarSync.syncTask(task);
+        await jira.syncTask(task);
+        await trello.syncTask(task);
         created.push(task);
       }
       res.status(201).json(created);
     } catch (err) {
       handleError(res, err, 'Failed to import from GitHub');
+    }
+  });
+
+  app.post('/api/tasks/import/jira', requireAuth, requireWriter, async (req, res) => {
+    const { project } = req.body || {};
+    if (!project) {
+      return res.status(400).json({ error: 'project required' });
+    }
+    try {
+      const issues = await jira.fetchIssues(project);
+      const created = [];
+      for (const issue of issues) {
+        if (!issue || !issue.title) continue;
+        const task = await db.createTask({
+          text: issue.title,
+          priority: 'medium',
+          userId: req.session.userId
+        });
+        await calendarSync.syncTask(task);
+        await jira.syncTask(task);
+        await trello.syncTask(task);
+        created.push(task);
+      }
+      res.status(201).json(created);
+    } catch (err) {
+      handleError(res, err, 'Failed to import from Jira');
+    }
+  });
+
+  app.post('/api/tasks/import/trello', requireAuth, requireWriter, async (req, res) => {
+    const { boardId } = req.body || {};
+    if (!boardId) {
+      return res.status(400).json({ error: 'boardId required' });
+    }
+    try {
+      const cards = await trello.fetchCards(boardId);
+      const created = [];
+      for (const card of cards) {
+        if (!card || !card.title) continue;
+        const task = await db.createTask({
+          text: card.title,
+          priority: 'medium',
+          userId: req.session.userId
+        });
+        await calendarSync.syncTask(task);
+        await jira.syncTask(task);
+        await trello.syncTask(task);
+        created.push(task);
+      }
+      res.status(201).json(created);
+    } catch (err) {
+      handleError(res, err, 'Failed to import from Trello');
     }
   });
 
@@ -440,6 +498,8 @@ module.exports = function(app) {
         recurrenceRule
       });
       await calendarSync.syncTask(task);
+      await jira.syncTask(task);
+      await trello.syncTask(task);
       await db.createHistory({
         taskId: task.id,
         userId: req.session.userId,
@@ -634,6 +694,8 @@ module.exports = function(app) {
         }
       }
       await calendarSync.syncTask(updated);
+      await jira.syncTask(updated);
+      await trello.syncTask(updated);
       if (done === true && !oldTask.done) {
         await db.createHistory({
           taskId: updated.id,
