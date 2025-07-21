@@ -16,6 +16,7 @@ async function init() {
   loadStats();
   loadReports();
   loadUsers();
+  loadStatuses();
   loadLogs();
 }
 
@@ -60,6 +61,31 @@ async function loadUsers() {
   }
 }
 
+async function loadStatuses() {
+  const res = await fetch('/api/statuses');
+  if (res.ok) {
+    const statuses = await res.json();
+    const list = document.getElementById('status-list');
+    list.innerHTML = '';
+    statuses.forEach(s => {
+      const li = document.createElement('li');
+      li.textContent = s.name;
+      const btn = document.createElement('button');
+      btn.textContent = 'Delete';
+      btn.onclick = async () => {
+        await updateCsrfToken();
+        const resp = await fetch(`/api/statuses/${s.id}`, {
+          method: 'DELETE',
+          headers: { 'CSRF-Token': csrfToken }
+        });
+        if (resp.ok) loadStatuses();
+      };
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+  }
+}
+
 async function loadLogs() {
   const res = await fetch('/api/admin/logs');
   if (res.ok) {
@@ -73,5 +99,21 @@ async function loadLogs() {
     });
   }
 }
+
+document.getElementById('add-status-btn').onclick = async () => {
+  const input = document.getElementById('new-status-input');
+  const name = input.value.trim();
+  if (!name) return;
+  await updateCsrfToken();
+  const res = await fetch('/api/statuses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+    body: JSON.stringify({ name })
+  });
+  if (res.ok) {
+    input.value = '';
+    loadStatuses();
+  }
+};
 
 window.onload = init;

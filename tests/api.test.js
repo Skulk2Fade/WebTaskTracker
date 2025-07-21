@@ -1156,6 +1156,18 @@ test('custom task statuses', async () => {
     .send({ username: 'statususer', password: 'Passw0rd!' });
 
   token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/statuses')
+    .set('CSRF-Token', token)
+    .send({ name: 'in progress' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
+  await agent
+    .post('/api/statuses')
+    .set('CSRF-Token', token)
+    .send({ name: 'blocked' });
+
+  token = (await agent.get('/api/csrf-token')).body.csrfToken;
   let res = await agent
     .post('/api/tasks')
     .set('CSRF-Token', token)

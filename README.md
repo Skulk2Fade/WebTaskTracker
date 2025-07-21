@@ -263,6 +263,24 @@ GET /api/groups
 
 When creating a task you can specify `groupId` so it is shared with all group members.
 
+## Workflow Statuses
+
+Admins can define the list of allowed task statuses which appear as columns on the board.
+
+``` 
+GET /api/statuses
+
+POST /api/statuses
+{ "name": "in progress" }
+
+PUT /api/statuses/:id
+{ "name": "review" }
+
+DELETE /api/statuses/:id
+```
+
+Tasks may then be created or updated with a `status` matching one of these names.
+
 ## Attachments
 
 You can attach files to tasks or comments. By default the body should contain
