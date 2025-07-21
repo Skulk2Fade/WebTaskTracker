@@ -10,16 +10,17 @@
 </head>
 <body>
   <header>
-    <h1>Task Tracker</h1>
+    <h1 data-i18n="titleTaskTracker">Task Tracker</h1>
     <nav role="navigation" aria-label="Main Navigation">
-      <a href="index.html">List View</a>
-      <a href="calendar.html">Calendar View</a>
-      <a href="board.html">Board View</a>
-      <a href="dashboard.html">Reports</a>
-      <a id="admin-link" href="admin.html" style="display:none;">Admin Dashboard</a>
-      <a href="help.html">Help</a>
+      <a href="index.html" data-i18n="listView">List View</a>
+      <a href="calendar.html" data-i18n="calendarView">Calendar View</a>
+      <a href="board.html" data-i18n="boardView">Board View</a>
+      <a href="dashboard.html" data-i18n="reports">Reports</a>
+      <a id="admin-link" href="admin.html" style="display:none;" data-i18n="adminDashboard">Admin Dashboard</a>
+      <a href="help.html" data-i18n="help">Help</a>
     </nav>
-    <button id="install-btn" style="display:none;">Install App</button>
+    <select id="lang-select"><option value="en">English</option><option value="es">Español</option></select>
+    <button id="install-btn" style="display:none;" aria-label="Install App" data-i18n="installApp">Install App</button>
   </header>
   <div class="container">
   <ul id="notifications" style="display:none;"></ul>
@@ -27,83 +28,84 @@
   <div id="sync-message" style="display:none;" aria-live="polite">All offline actions synced.</div>
     <div id="auth">
       <form id="login-form">
-        <label for="username-input">Username</label>
-        <input type="text" id="username-input" placeholder="Username" autocomplete="username" required>
-        <label for="password-input">Password</label>
-        <input type="password" id="password-input" placeholder="Password" autocomplete="current-password" required>
-        <button id="login-button" type="submit" aria-label="Login">Login</button>
-        <button id="register-button" type="button" aria-label="Register">Register</button>
-        <button id="google-login" type="button" aria-label="Login with Google">Login with Google</button>
-        <button id="github-login" type="button" aria-label="Login with GitHub">Login with GitHub</button>
+        <label for="username-input" data-i18n="username">Username</label>
+        <input type="text" id="username-input" placeholder="Username" data-i18n-placeholder="username" autocomplete="username" required>
+        <label for="password-input" data-i18n="password">Password</label>
+        <input type="password" id="password-input" placeholder="Password" data-i18n-placeholder="password" autocomplete="current-password" required>
+        <button id="login-button" type="submit" data-i18n="login" data-i18n-aria-label="login" aria-label="Login">Login</button>
+        <button id="register-button" type="button" data-i18n="register" data-i18n-aria-label="register" aria-label="Register">Register</button>
+        <button id="google-login" type="button" data-i18n="loginGoogle" data-i18n-aria-label="loginGoogle" aria-label="Login with Google">Login with Google</button>
+        <button id="github-login" type="button" data-i18n="loginGithub" data-i18n-aria-label="loginGithub" aria-label="Login with GitHub">Login with GitHub</button>
         <div id="login-error" class="error" aria-live="polite" role="alert"></div>
       </form>
       <div id="user-info" style="display:none;">
       Logged in as <span id="current-user"></span>
-      <button id="logout-button" aria-label="Logout">Logout</button>
+      <button id="logout-button" data-i18n="logout" data-i18n-aria-label="logout" aria-label="Logout">Logout</button>
     </div>
   </div>
   <div id="task-form">
-    <label for="task-input">New task</label>
-    <input type="text" id="task-input" placeholder="New task">
-    <label for="due-date-input">Due date</label>
+    <label for="task-input" data-i18n="newTask">New task</label>
+    <input type="text" id="task-input" placeholder="New task" data-i18n-placeholder="newTask">
+    <label for="due-date-input" data-i18n="dueDate">Due date</label>
     <input type="date" id="due-date-input">
-    <label for="due-time-input">Due time</label>
+    <label for="due-time-input" data-i18n="dueTime">Due time</label>
     <input type="time" id="due-time-input">
-    <label for="category-input">Category</label>
-    <input type="text" id="category-input" placeholder="Category">
-    <label for="tags-input">Tags</label>
-    <input type="text" id="tags-input" placeholder="tag1,tag2">
-    <label for="priority-select">Priority</label>
+    <label for="category-input" data-i18n="category">Category</label>
+    <input type="text" id="category-input" placeholder="Category" data-i18n-placeholder="category">
+    <label for="tags-input" data-i18n="tags">Tags</label>
+    <input type="text" id="tags-input" placeholder="tag1,tag2" data-i18n-placeholder="tags">
+    <label for="priority-select" data-i18n="priority">Priority</label>
     <select id="priority-select">
-      <option value="high">High</option>
-      <option value="medium" selected>Medium</option>
-      <option value="low">Low</option>
+      <option value="high" data-i18n="high">High</option>
+      <option value="medium" data-i18n="medium" selected>Medium</option>
+      <option value="low" data-i18n="low">Low</option>
     </select>
-    <button id="add-button" aria-label="Add Task">Add</button>
+    <button id="add-button" data-i18n="add" data-i18n-aria-label="add" aria-label="Add Task">Add</button>
   </div>
   <div id="controls">
-    <label for="status-filter">Show</label>
+    <label for="status-filter" data-i18n="show">Show</label>
     <select id="status-filter">
-      <option value="all">All</option>
-      <option value="active">Active</option>
-      <option value="completed">Completed</option>
+      <option value="all" data-i18n="all">All</option>
+      <option value="active" data-i18n="active">Active</option>
+      <option value="completed" data-i18n="completed">Completed</option>
     </select>
-    <label for="priority-filter">Priority</label>
+    <label for="priority-filter" data-i18n="priority">Priority</label>
     <select id="priority-filter">
-      <option value="all">All Priorities</option>
-      <option value="high">High</option>
-      <option value="medium">Medium</option>
-      <option value="low">Low</option>
+      <option value="all" data-i18n="allPriorities">All Priorities</option>
+      <option value="high" data-i18n="high">High</option>
+      <option value="medium" data-i18n="medium">Medium</option>
+      <option value="low" data-i18n="low">Low</option>
     </select>
-    <label for="category-filter">Category</label>
-    <input type="text" id="category-filter" placeholder="All Categories">
-    <label for="tags-filter">Tags</label>
-    <input type="text" id="tags-filter" placeholder="tag">
-    <label for="search-input">Search</label>
-    <input type="text" id="search-input" placeholder="Keyword">
-    <label for="sort-select">Sort</label>
+    <label for="category-filter" data-i18n="category">Category</label>
+    <input type="text" id="category-filter" placeholder="All Categories" data-i18n-placeholder="allCategories">
+    <label for="tags-filter" data-i18n="tags">Tags</label>
+    <input type="text" id="tags-filter" placeholder="tag" data-i18n-placeholder="tagPlaceholder">
+    <label for="search-input" data-i18n="search">Search</label>
+    <input type="text" id="search-input" placeholder="Keyword" data-i18n-placeholder="keyword">
+    <label for="sort-select" data-i18n="sort">Sort</label>
     <select id="sort-select">
-      <option value="">No Sorting</option>
-      <option value="dueDate">Sort by Due Date</option>
-      <option value="priority">Sort by Priority</option>
+      <option value="" data-i18n="noSorting">No Sorting</option>
+      <option value="dueDate" data-i18n="sortByDueDate">Sort by Due Date</option>
+      <option value="priority" data-i18n="sortByPriority">Sort by Priority</option>
     </select>
   </div>
   <div id="bulk-controls" style="margin-bottom:10px;">
-    <button id="bulk-done" aria-label="Mark selected tasks done">Mark Selected Done</button>
-    <button id="bulk-delete" aria-label="Delete selected tasks">Delete Selected</button>
-    <label for="bulk-priority">Set Priority</label>
+    <button id="bulk-done" data-i18n="markSelectedDone" data-i18n-aria-label="markSelectedDone" aria-label="Mark selected tasks done">Mark Selected Done</button>
+    <button id="bulk-delete" data-i18n="deleteSelected" data-i18n-aria-label="deleteSelected" aria-label="Delete selected tasks">Delete Selected</button>
+    <label for="bulk-priority" data-i18n="setPriority">Set Priority</label>
     <select id="bulk-priority">
-      <option value="high">High</option>
-      <option value="medium" selected>Medium</option>
-      <option value="low">Low</option>
+      <option value="high" data-i18n="high">High</option>
+      <option value="medium" data-i18n="medium" selected>Medium</option>
+      <option value="low" data-i18n="low">Low</option>
     </select>
-    <button id="bulk-priority-btn" aria-label="Apply priority to selected tasks">Apply</button>
+    <button id="bulk-priority-btn" data-i18n="apply" data-i18n-aria-label="apply" aria-label="Apply priority to selected tasks">Apply</button>
   </div>
   <ul id="task-list"></ul>
 
   </div> <!-- end container -->
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="translate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
   <script src="script.js"></script>
   <script src="sw-register.js"></script>
